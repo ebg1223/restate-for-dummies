@@ -79,8 +79,12 @@ export interface RestateFactory {
    * Create a typed workflow with automatic serde injection
    */
   workflow<Handlers extends {
+    [K in Exclude<keyof Handlers, "run">]: (
+      context: WorkflowSharedHandlerContext<any>,
+      ...args: any[]
+    ) => Promise<any>;
+  } & {
     run: (context: WorkflowHandlerContext<any>, ...args: any[]) => Promise<any>;
-    shared?: Record<string, (context: WorkflowSharedHandlerContext<any>, ...args: any[]) => Promise<any>>;
   }>(
     name: string,
     handlers: Handlers
@@ -119,12 +123,10 @@ export type ObjectClientType<T> = T extends TypedObject<infer S, infer H>
  * Type helper to extract workflow client type
  */
 export type WorkflowClientType<T> = T extends TypedWorkflow<infer H>
-  ? H extends { run: infer R; shared?: infer S }
+  ? H extends { run: infer R }
     ? {
         run: ExtractHandlerType<R>;
         getStatus(): Promise<any>; // WorkflowStatus type not exported by SDK
-      } & (S extends Record<string, any>
-        ? { [K in keyof S]: ExtractHandlerType<S[K]> }
-        : {})
+      } & { [K in Exclude<keyof H, "run">]: ExtractHandlerType<H[K]> }
     : never
   : never;

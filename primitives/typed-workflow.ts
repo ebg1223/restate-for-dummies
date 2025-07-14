@@ -19,7 +19,6 @@ import {
   createServiceClient,
   createServiceSendClient,
   createWorkflowClient,
-  createWorkflowSendClient,
 } from "./client-wrapper";
 import { get as rawGet, run as rawRun, set as rawSet } from "./utils";
 
@@ -158,15 +157,6 @@ export function createRestateWorkflow<
             );
             return createWorkflowClient(ctx, workflow, key, serde);
           },
-          workflowSend: (workflow, key) => {
-            console.log(
-              "[typed-workflow] Creating workflow send client, key:",
-              key,
-              "serde:",
-              serde,
-            );
-            return createWorkflowSendClient(ctx, workflow, key, serde);
-          },
         };
         return runHandler(context, ...args);
       },
@@ -237,15 +227,6 @@ export function createRestateWorkflow<
                 serde,
               );
               return createWorkflowClient(ctx, workflow, key, serde);
-            },
-            workflowSend: (workflow, key) => {
-              console.log(
-                "[typed-workflow-shared] Creating workflow send client, key:",
-                key,
-                "serde:",
-                serde,
-              );
-              return createWorkflowSendClient(ctx, workflow, key, serde);
             },
           };
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

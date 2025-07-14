@@ -217,10 +217,8 @@ const orderWorkflow = restate.workflow("OrderWorkflow", {
     };
   },
 
-  shared: {
-    getOrderStatus: async ({ ctx }) => {
-      return `Order ${ctx.key} is being processed`;
-    },
+  getOrderStatus: async ({ ctx }) => {
+    return `Order ${ctx.key} is being processed`;
   },
 });
 

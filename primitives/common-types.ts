@@ -58,10 +58,6 @@ export interface BaseClientMethods {
     workflow: WorkflowDefinition<string, THandlers>,
     key: string,
   ) => restate.Client<THandlers>;
-  workflowSend: <THandlers>(
-    workflow: WorkflowDefinition<string, THandlers>,
-    key: string,
-  ) => restate.SendClient<THandlers>;
 }
 
 // Handler transformation types for Object handlers
@@ -152,10 +148,6 @@ export interface StandaloneClients {
     key: string
   ) => IngressSendClient<THandlers>;
   workflow: <THandlers>(
-    workflow: WorkflowDefinition<string, THandlers>,
-    key: string
-  ) => IngressWorkflowClient<THandlers>;
-  workflowSend: <THandlers>(
     workflow: WorkflowDefinition<string, THandlers>,
     key: string
   ) => IngressWorkflowClient<THandlers>;

@@ -18,7 +18,6 @@ import {
   createStandaloneObjectClient,
   createStandaloneObjectSendClient,
   createStandaloneWorkflowClient,
-  createStandaloneWorkflowSendClient,
 } from "./standalone-clients";
 
 /**
@@ -85,8 +84,12 @@ export function createRestateFactory(config: FactoryConfig): RestateFactory {
 
     workflow<
       Handlers extends {
+        [K in Exclude<keyof Handlers, "run">]: (
+          context: WorkflowSharedHandlerContext<any>,
+          ...args: any[]
+        ) => Promise<any>;
+      } & {
         run: (context: WorkflowHandlerContext<any>, ...args: any[]) => Promise<any>;
-        shared?: Record<string, (context: WorkflowSharedHandlerContext<any>, ...args: any[]) => Promise<any>>;
       }
     >(name: string, handlers: Handlers) {
       // Create workflow with factory serde
@@ -105,8 +108,6 @@ export function createRestateFactory(config: FactoryConfig): RestateFactory {
           createStandaloneObjectSendClient(baseUrl, object, key, serde),
         workflow: <THandlers>(workflow: restate.WorkflowDefinition<string, THandlers>, key: string) =>
           createStandaloneWorkflowClient(baseUrl, workflow, key, serde),
-        workflowSend: <THandlers>(workflow: restate.WorkflowDefinition<string, THandlers>, key: string) =>
-          createStandaloneWorkflowSendClient(baseUrl, workflow, key, serde),
       };
     },
 
@@ -130,9 +131,13 @@ function typedObjectWithSerde<State, Handlers extends Record<string, (
 
 function typedWorkflowWithSerde<
   Handlers extends {
+    [K in Exclude<keyof Handlers, "run">]: (
+      context: WorkflowSharedHandlerContext<any>,
+      ...args: any[]
+    ) => Promise<any>;
+  } & {
     run: (context: WorkflowHandlerContext<any>, ...args: any[]) => Promise<any>;
-    shared?: Record<string, (context: WorkflowSharedHandlerContext<any>, ...args: any[]) => Promise<any>>;
   }
 >(name: string, handlers: Handlers, serde: Serde<any>) {
-  return typedWorkflow(name, handlers as any, serde);
+  return typedWorkflow(name, handlers, serde);
 }

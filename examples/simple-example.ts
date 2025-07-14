@@ -47,19 +47,19 @@ const greetingCounter = restate
     },
   });
 
+// Define a workflow - shared handlers are defined at the top level alongside run
 const greetingWorkflow = restate.workflow("GreetingWorkflow", {
   run: async ({ ctx }, name: string): Promise<string> => {
     return `Hello, ${name}!`;
   },
 
   greetMany: async ({ ctx }, names: string[]) => {
-    // For this example, just greet each name directly
-    // Avoid circular reference by not calling service(greetingService)
+    // Shared handler - can be called by other services/workflows
     return names.map((name) => `Hello, ${name}!`);
   },
 });
 
 // Step 5: Export for registration with Restate
-export { greetingService, greetingCounter };
+export { greetingService, greetingCounter, greetingWorkflow };
 
 const clients = restate.standaloneClients("asdf");

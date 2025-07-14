@@ -115,7 +115,6 @@ Context provides:
 - `object`: Create object clients
 - `objectSend`: Create delayed object clients
 - `workflow`: Create workflow clients
-- `workflowSend`: Create delayed workflow clients
 
 ### Object Definition
 
@@ -141,9 +140,9 @@ Context provides:
 ```typescript
 const workflow = restate.workflow(name: string, {
   run: async (context, ...args) => { /* main workflow */ },
-  shared: {
-    methodName: async (context, ...args) => { /* shared handlers */ }
-  }
+  // Shared handlers are defined at the top level alongside run
+  sharedMethod1: async (context, ...args) => { /* shared handler 1 */ },
+  sharedMethod2: async (context, ...args) => { /* shared handler 2 */ },
 });
 ```
 

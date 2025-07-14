@@ -55,7 +55,6 @@ export {
   createServiceClient,
   createServiceSendClient,
   createWorkflowClient,
-  createWorkflowSendClient,
 } from "./client-wrapper";
 
 // Export standalone client functions for advanced users
@@ -65,5 +64,4 @@ export {
   createServiceClient as createStandaloneServiceClient,
   createServiceSendClient as createStandaloneServiceSendClient,
   createWorkflowClient as createStandaloneWorkflowClient,
-  createWorkflowSendClient as createStandaloneWorkflowSendClient,
 } from "./standalone-clients";

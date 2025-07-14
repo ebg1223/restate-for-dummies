@@ -14,7 +14,6 @@ import {
   createServiceClient,
   createServiceSendClient,
   createWorkflowClient,
-  createWorkflowSendClient,
 } from "./client-wrapper";
 import { run as rawRun } from "./utils";
 
@@ -74,8 +73,6 @@ export function createRestateService<
             createObjectSendClient(ctx, object, key, serde),
           workflow: (workflow, key) =>
             createWorkflowClient(ctx, workflow, key, serde),
-          workflowSend: (workflow, key) =>
-            createWorkflowSendClient(ctx, workflow, key, serde),
         };
         return handlerFn(context, ...args);
       },

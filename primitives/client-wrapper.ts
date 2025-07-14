@@ -97,19 +97,3 @@ export function createObjectSendClient<THandlers>(
   return wrapSendClientProxy(rawClient, serde);
 }
 
-/**
- * Creates a typed workflow send client that automatically injects serde configuration
- * @param ctx The Restate context
- * @param workflow The workflow definition for send operations
- * @param key The unique identifier for the workflow instance
- * @param serde The serialization/deserialization configuration
- */
-export function createWorkflowSendClient<THandlers>(
-  ctx: Context | ObjectContext | WorkflowContext | WorkflowSharedContext,
-  workflow: WorkflowDefinition<string, THandlers>,
-  key: string,
-  serde: Serde<unknown>,
-): SendClient<THandlers> {
-  const rawClient = ctx.workflowSendClient(workflow, key);
-  return wrapSendClientProxy(rawClient, serde);
-}
