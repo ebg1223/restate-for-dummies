@@ -1,4 +1,4 @@
-import { getRestate } from "./primitives";
+import { getRestate } from "./src";
 
 const factest = getRestate();
 

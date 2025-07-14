@@ -1,7 +1,6 @@
 import type {
   Serde,
   ServiceDefinition,
-  ServiceHandler,
   VirtualObjectDefinition,
   WorkflowDefinition,
 } from "@restatedev/restate-sdk";
@@ -17,8 +16,6 @@ import {
   createServiceSendClient,
   createWorkflowSendClient,
 } from "./standalone-clients";
-
-import { run } from "./utils";
 import * as restate from "@restatedev/restate-sdk-clients";
 
 export function getRestate({
