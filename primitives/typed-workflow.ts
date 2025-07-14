@@ -89,6 +89,7 @@ export function createRestateWorkflow<TState>(
       TransformSharedHandlers<TState, Omit<THandlers, "run">>
     >
   > => {
+    const serde = new SerdeClass();
     const { run: runHandler, ...sharedHandlers } = inputHandlers;
 
     // Transform the run handler
@@ -119,21 +120,21 @@ export function createRestateWorkflow<TState>(
           getState,
           setState,
           runStep,
-          service: (service, serde) => {
+          service: (service) => {
             console.log(
               "[typed-workflow] Creating service client, serde:",
               serde,
             );
             return createServiceClient(ctx, service, serde);
           },
-          serviceSend: (service, serde) => {
+          serviceSend: (service) => {
             console.log(
               "[typed-workflow] Creating service send client, serde:",
               serde,
             );
             return createServiceSendClient(ctx, service, serde);
           },
-          object: (object, key, serde) => {
+          object: (object, key) => {
             console.log(
               "[typed-workflow] Creating object client, key:",
               key,
@@ -142,7 +143,7 @@ export function createRestateWorkflow<TState>(
             );
             return createObjectClient(ctx, object, key, serde);
           },
-          objectSend: (object, key, serde) => {
+          objectSend: (object, key) => {
             console.log(
               "[typed-workflow] Creating object send client, key:",
               key,
@@ -151,7 +152,7 @@ export function createRestateWorkflow<TState>(
             );
             return createObjectSendClient(ctx, object, key, serde);
           },
-          workflow: (workflow, key, serde) => {
+          workflow: (workflow, key) => {
             console.log(
               "[typed-workflow] Creating workflow client, key:",
               key,
@@ -160,7 +161,7 @@ export function createRestateWorkflow<TState>(
             );
             return createWorkflowClient(ctx, workflow, key, serde);
           },
-          workflowSend: (workflow, key, serde) => {
+          workflowSend: (workflow, key) => {
             console.log(
               "[typed-workflow] Creating workflow send client, key:",
               key,
@@ -199,21 +200,21 @@ export function createRestateWorkflow<TState>(
             ctx,
             getState,
             runStep,
-            service: (service, serde) => {
+            service: (service) => {
               console.log(
                 "[typed-workflow-shared] Creating service client, serde:",
                 serde,
               );
               return createServiceClient(ctx, service, serde);
             },
-            serviceSend: (service, serde) => {
+            serviceSend: (service) => {
               console.log(
                 "[typed-workflow-shared] Creating service send client, serde:",
                 serde,
               );
               return createServiceSendClient(ctx, service, serde);
             },
-            object: (object, key, serde) => {
+            object: (object, key) => {
               console.log(
                 "[typed-workflow-shared] Creating object client, key:",
                 key,
@@ -222,7 +223,7 @@ export function createRestateWorkflow<TState>(
               );
               return createObjectClient(ctx, object, key, serde);
             },
-            objectSend: (object, key, serde) => {
+            objectSend: (object, key) => {
               console.log(
                 "[typed-workflow-shared] Creating object send client, key:",
                 key,
@@ -231,7 +232,7 @@ export function createRestateWorkflow<TState>(
               );
               return createObjectSendClient(ctx, object, key, serde);
             },
-            workflow: (workflow, key, serde) => {
+            workflow: (workflow, key) => {
               console.log(
                 "[typed-workflow-shared] Creating workflow client, key:",
                 key,
@@ -240,7 +241,7 @@ export function createRestateWorkflow<TState>(
               );
               return createWorkflowClient(ctx, workflow, key, serde);
             },
-            workflowSend: (workflow, key, serde) => {
+            workflowSend: (workflow, key) => {
               console.log(
                 "[typed-workflow-shared] Creating workflow send client, key:",
                 key,

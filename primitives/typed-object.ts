@@ -20,7 +20,6 @@ import {
   createWorkflowClient,
   createWorkflowSendClient,
 } from "./client-wrapper";
-import { SuperJsonSerde } from "./serde";
 import { get as rawGet, run as rawRun, set as rawSet } from "./utils";
 
 // Handler context that can be destructured
@@ -28,7 +27,7 @@ export type HandlerContext<TState> = {
   clearState: TypedClear<TState>;
   ctx: restate.ObjectContext;
   getState: TypedGet<TState>;
-  runStep: TypedRun;
+  runStep: TypedRun<TState>;
   setState: TypedSet<TState>;
 } & BaseClientMethods;
 
@@ -59,6 +58,7 @@ export function typedObject<TState>(
   ): VirtualObjectDefinition<string, TransformHandlers<TState, THandlers>> => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transformedHandlers: any = {};
+    const serde = new SerdeClass();
 
     for (const [key, handlerFn] of Object.entries(handlers)) {
       transformedHandlers[key] = restate.handlers.object.exclusive(
@@ -72,7 +72,7 @@ export function typedObject<TState>(
           ...args: any[]
         ) => {
           const getState: TypedGet<TState> = (key, opts) =>
-            rawGet(ctx as GetContext, key as string, opts);
+            rawGet(ctx as GetContext, key as string, new SerdeClass(), opts);
 
           const setState: TypedSet<TState> = (key, value, opts) =>
             rawSet(ctx as SetContext, key as string, value, opts);
@@ -80,8 +80,8 @@ export function typedObject<TState>(
           const clearState: TypedClear<TState> = (key) =>
             ctx.clear(key as string);
 
-          const runStep: TypedRun = (name, action, opts) =>
-            rawRun(ctx, name, action, opts);
+          const runStep: TypedRun<TState> = (name, action, opts) =>
+            rawRun(ctx, name, action, new SerdeClass(), opts);
 
           const context: HandlerContext<TState> = {
             clearState,
@@ -89,17 +89,16 @@ export function typedObject<TState>(
             getState,
             runStep,
             setState,
-            service: (service, serde) =>
-              createServiceClient(ctx, service, serde),
-            serviceSend: (service, serde) =>
+            service: (service) => createServiceClient(ctx, service, serde),
+            serviceSend: (service) =>
               createServiceSendClient(ctx, service, serde),
-            object: (object, key, serde) =>
+            object: (object, key) =>
               createObjectClient(ctx, object, key, serde),
-            objectSend: (object, key, serde) =>
+            objectSend: (object, key) =>
               createObjectSendClient(ctx, object, key, serde),
-            workflow: (workflow, key, serde) =>
+            workflow: (workflow, key) =>
               createWorkflowClient(ctx, workflow, key, serde),
-            workflowSend: (workflow, key, serde) =>
+            workflowSend: (workflow, key) =>
               createWorkflowSendClient(ctx, workflow, key, serde),
           };
           return handlerFn(context, ...args);

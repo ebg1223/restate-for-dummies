@@ -20,73 +20,86 @@ import {
 import { run as rawRun } from "./utils";
 
 // Handler context that can be destructured
-export type ServiceHandlerContext = {
+export type ServiceHandlerContext<T> = {
   ctx: restate.Context;
-  runStep: TypedRun;
+  runStep: TypedRun<T>;
 } & BaseClientMethods;
 
 // Transform handler types to match Restate's expected format
-export type TransformHandlers<THandlers> = {
+export type TransformHandlers<THandlers, THandlerContext> = {
   [K in keyof THandlers]: TransformServiceHandler<
-    ServiceHandlerContext,
+    ServiceHandlerContext<THandlerContext>,
     THandlers[K]
   >;
 };
 
-export type ServiceHandlers = {
-  [key: string]: (
-    context: ServiceHandlerContext,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...args: any[]
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ) => Promise<any>;
-};
-
-// The working solution: handlers are defined inline
-export function createRestateService<THandlers extends ServiceHandlers>(
+// The working solution: use higher-order function pattern
+export function createRestateService<THandlerContext>(
   name: string,
-  handlers: THandlers,
-  SerdeClass: new () => restate.Serde<THandlers>,
-): ServiceDefinition<string, TransformHandlers<THandlers>> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const transformedHandlers: any = {};
+  SerdeClass: new <T>() => restate.Serde<T>,
+) {
+  const serde = new SerdeClass();
+  return <
+    THandlers extends {
+      [key: string]: (
+        context: ServiceHandlerContext<THandlerContext>,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...args: any[]
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ) => Promise<any>;
+    },
+  >(
+    handlers: THandlers,
+  ): ServiceDefinition<
+    string,
+    TransformHandlers<THandlers, THandlerContext>
+  > => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const transformedHandlers: any = {};
 
-  for (const [key, handlerFn] of Object.entries(handlers)) {
-    // Wrap each handler with SuperJsonSerde
-    transformedHandlers[key] = restate.handlers.handler(
-      {
-        input: new SerdeClass(),
-        output: new SerdeClass(),
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      async (ctx: restate.Context, ...args: any[]) => {
-        const runStep: TypedRun = (name, action, opts) =>
-          rawRun(ctx, name, action, opts);
+    for (const [key, handlerFn] of Object.entries(handlers)) {
+      // Wrap each handler with SuperJsonSerde
+      transformedHandlers[key] = restate.handlers.handler(
+        {
+          input: new SerdeClass(),
+          output: new SerdeClass(),
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async (ctx: restate.Context, ...args: any[]) => {
+          const runStep = <T>(
+            name: Parameters<typeof rawRun<T>>[1],
+            action: Parameters<typeof rawRun<T>>[2],
+            opts: Parameters<typeof rawRun<T>>[4],
+          ) => rawRun<T>(ctx, name, action, new SerdeClass(), opts);
 
-        const context: ServiceHandlerContext = {
-          ctx,
-          runStep,
-          service: (service, serde) => createServiceClient(ctx, service, serde),
-          serviceSend: (service, serde) =>
-            createServiceSendClient(ctx, service, serde),
-          object: (object, key, serde) =>
-            createObjectClient(ctx, object, key, serde),
-          objectSend: (object, key, serde) =>
-            createObjectSendClient(ctx, object, key, serde),
-          workflow: (workflow, key, serde) =>
-            createWorkflowClient(ctx, workflow, key, serde),
-          workflowSend: (workflow, key, serde) =>
-            createWorkflowSendClient(ctx, workflow, key, serde),
-        };
-        return handlerFn(context, ...args);
-      },
-    );
-  }
+          const context: ServiceHandlerContext<THandlerContext> = {
+            ctx,
+            runStep,
+            service: (service) => createServiceClient(ctx, service, serde),
+            serviceSend: (service) =>
+              createServiceSendClient(ctx, service, serde),
+            object: (object, key) =>
+              createObjectClient(ctx, object, key, serde),
+            objectSend: (object, key) =>
+              createObjectSendClient(ctx, object, key, serde),
+            workflow: (workflow, key) =>
+              createWorkflowClient(ctx, workflow, key, serde),
+            workflowSend: (workflow, key) =>
+              createWorkflowSendClient(ctx, workflow, key, serde),
+          };
+          return handlerFn(context, ...args);
+        },
+      );
+    }
 
-  return restate.service({
-    name,
-    handlers: transformedHandlers,
-  }) as ServiceDefinition<string, TransformHandlers<THandlers>>;
+    return restate.service({
+      name,
+      handlers: transformedHandlers,
+    }) as ServiceDefinition<
+      string,
+      TransformHandlers<THandlers, THandlerContext>
+    >;
+  };
 }
 
 // For backwards compatibility or alternative naming preference

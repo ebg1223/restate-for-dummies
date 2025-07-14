@@ -9,7 +9,7 @@ import * as restate from "@restatedev/restate-sdk";
 import type { BaseOpts, RunFunc, RunOpts } from "./utils";
 
 // Type for the run function - shared across all primitives
-export type TypedRun = <T>(
+export type TypedRun<T> = <T>(
   name: string,
   action: RunFunc<T>,
   opts?: RunOpts<T>,
@@ -34,36 +34,24 @@ export interface BaseClientMethods {
   object: <THandlers>(
     object: VirtualObjectDefinition<string, THandlers>,
     key: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    serde: restate.Serde<any>,
   ) => restate.Client<THandlers>;
   objectSend: <THandlers>(
     object: VirtualObjectDefinition<string, THandlers>,
     key: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    serde: restate.Serde<any>,
   ) => restate.SendClient<THandlers>;
   service: <THandlers>(
     service: ServiceDefinition<string, THandlers>,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    serde: restate.Serde<any>,
   ) => restate.Client<THandlers>;
   serviceSend: <THandlers>(
     service: ServiceDefinition<string, THandlers>,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    serde: restate.Serde<any>,
   ) => restate.SendClient<THandlers>;
   workflow: <THandlers>(
     workflow: WorkflowDefinition<string, THandlers>,
     key: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    serde: restate.Serde<any>,
   ) => restate.Client<THandlers>;
   workflowSend: <THandlers>(
     workflow: WorkflowDefinition<string, THandlers>,
     key: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    serde: restate.Serde<any>,
   ) => restate.SendClient<THandlers>;
 }
 

@@ -14,12 +14,11 @@ import {
 } from "./client-proxy";
 import { superjsonserde } from "./serde";
 
-const restateUrl = process.env.RESTATE_URL || "http://localhost:8080";
 let ingress: restate.Ingress | undefined;
 
-export const getRestateClient = () => {
-  ingress ??= restate.connect({
-    url: restateUrl,
+export const getRestateClient = (url: string) => {
+  ingress = restate.connect({
+    url,
   });
   return ingress;
 };
@@ -44,10 +43,10 @@ export const getRestateClient = () => {
  */
 export function createServiceClient<THandlers>(
   service: ServiceDefinition<string, THandlers>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  serde: Serde<any> = superjsonserde,
+  serde: Serde<THandlers>,
+  url: string,
 ) {
-  const ingress = getRestateClient();
+  const ingress = getRestateClient(url);
   const rawClient = ingress.serviceClient(service);
   return wrapIngressClient(rawClient, serde);
 }
@@ -60,10 +59,10 @@ export function createServiceClient<THandlers>(
  */
 export function createServiceSendClient<THandlers>(
   service: ServiceDefinition<string, THandlers>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  serde: Serde<any> = superjsonserde,
+  serde: Serde<THandlers>,
+  url: string,
 ) {
-  const ingress = getRestateClient();
+  const ingress = getRestateClient(url);
   const rawClient = ingress.serviceSendClient(service);
   return wrapIngressSendClient(rawClient, serde);
 }
@@ -78,10 +77,10 @@ export function createServiceSendClient<THandlers>(
 export function createObjectClient<THandlers>(
   object: VirtualObjectDefinition<string, THandlers>,
   key: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  serde: Serde<any> = superjsonserde,
+  serde: Serde<THandlers>,
+  url: string,
 ) {
-  const ingress = getRestateClient();
+  const ingress = getRestateClient(url);
   const rawClient = ingress.objectClient(object, key);
   return wrapIngressClient(rawClient, serde);
 }
@@ -96,10 +95,10 @@ export function createObjectClient<THandlers>(
 export function createObjectSendClient<THandlers>(
   object: VirtualObjectDefinition<string, THandlers>,
   key: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  serde: Serde<any> = superjsonserde,
+  serde: Serde<THandlers>,
+  url: string,
 ) {
-  const ingress = getRestateClient();
+  const ingress = getRestateClient(url);
   const rawClient = ingress.objectSendClient(object, key);
   return wrapIngressSendClient(rawClient, serde);
 }
@@ -114,10 +113,10 @@ export function createObjectSendClient<THandlers>(
 export function createWorkflowClient<THandlers>(
   workflow: WorkflowDefinition<string, THandlers>,
   key: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  serde: Serde<any> = superjsonserde,
+  serde: Serde<THandlers>,
+  url: string,
 ) {
-  const ingress = getRestateClient();
+  const ingress = getRestateClient(url);
   const rawClient = ingress.workflowClient(workflow, key);
   return wrapIngressWorkflowClient(rawClient, serde);
 }
@@ -133,11 +132,11 @@ export function createWorkflowClient<THandlers>(
 export function createWorkflowSendClient<THandlers>(
   workflow: WorkflowDefinition<string, THandlers>,
   key: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  serde: Serde<any> = superjsonserde,
+  serde: Serde<THandlers>,
+  url: string,
 ) {
   // The typed workflow client supports both regular and send operations
-  const ingress = getRestateClient();
+  const ingress = getRestateClient(url);
   const rawClient = ingress.workflowClient(workflow, key);
   return wrapIngressWorkflowClient(rawClient, serde);
 }

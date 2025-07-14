@@ -1,32 +1,61 @@
-import type { Serde, ServiceHandler } from "@restatedev/restate-sdk";
+import type {
+  Serde,
+  ServiceDefinition,
+  ServiceHandler,
+  VirtualObjectDefinition,
+  WorkflowDefinition,
+} from "@restatedev/restate-sdk";
 import { typedObject } from "./typed-object";
-import { typedService, type ServiceHandlers } from "./typed-service";
+import { typedService } from "./typed-service";
 import { typedWorkflow } from "./typed-workflow";
-import { SuperJsonSerde } from "./serde";
+
 import {
   createObjectClient,
+  createObjectSendClient,
   createServiceClient,
   createWorkflowClient,
+  createServiceSendClient,
+  createWorkflowSendClient,
 } from "./standalone-clients";
 import { standaloneServiceClient } from ".";
 import { run } from "./utils";
+import * as restate from "@restatedev/restate-sdk-clients";
 
-export function getRestate(serde: new () => Serde<any>) {
-  const createObject = <T>(name: string) => typedObject<T>(name, serde);
-  const createService = <THandlers extends ServiceHandlers>(
-    name: string,
-    handlers: THandlers,
-  ) => typedService<THandlers>(name, handlers, serde);
-  const createWorkflow = <T>(name: string) => typedWorkflow<T>(name, serde);
+export function getRestate(SerdeClass: new () => Serde<any>, url: string) {
+  const createObject = <T>(name: string) => typedObject<T>(name, SerdeClass);
+  const createService = (name: string) => typedService(name, SerdeClass);
+  const createWorkflow = <T>(name: string) =>
+    typedWorkflow<T>(name, SerdeClass);
+
+  const standaloneClients = {
+    service: <T>(service: ServiceDefinition<string, T>) =>
+      createServiceClient<T>(service, new SerdeClass(), url),
+
+    serviceSend: <T>(service: ServiceDefinition<string, T>) =>
+      createServiceSendClient<T>(service, new SerdeClass(), url),
+
+    object: <T>(object: VirtualObjectDefinition<string, T>, key: string) =>
+      createObjectClient<T>(object, key, new SerdeClass(), url),
+
+    objectSend: <T>(object: VirtualObjectDefinition<string, T>, key: string) =>
+      createObjectSendClient<T>(object, key, new SerdeClass(), url),
+
+    workflow: <T>(workflow: WorkflowDefinition<string, T>, key: string) =>
+      createWorkflowClient<T>(workflow, key, new SerdeClass(), url),
+
+    workflowSend: <T>(workflow: WorkflowDefinition<string, T>, key: string) =>
+      createWorkflowSendClient<T>(workflow, key, new SerdeClass(), url),
+  };
 
   return {
     createObject,
     createService,
     createWorkflow,
+    standaloneClients,
   } as const;
 }
 
-const factest = getRestate(SuperJsonSerde);
+const factest = getRestate(restate.serde.JsonSerde, "http://localhost:3000");
 
 const obj = factest.createObject<{
   num: number;
@@ -38,7 +67,7 @@ const obj = factest.createObject<{
   },
 });
 
-const serv = factest.createService("hi", {
+const serv = factest.createService("hi")({
   hi: async ({ ctx }) => {
     console.log("hi");
     return "HIHI";
