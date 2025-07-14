@@ -4,12 +4,13 @@ import * as restate from "@restatedev/restate-sdk";
 
 import type {
   BaseClientMethods,
+  TransformWorkflowHandler,
+  TransformWorkflowSharedHandler,
   TypedClear,
   TypedGet,
   TypedRun,
   TypedSet,
 } from "./common-types";
-import type { TransformHandlers } from "./type-utils";
 import type { GetContext } from "./utils";
 
 import {
@@ -18,7 +19,9 @@ import {
   createServiceClient,
   createServiceSendClient,
   createWorkflowClient,
+  createWorkflowSendClient,
 } from "./client-wrapper";
+
 import { get as rawGet, run as rawRun, set as rawSet } from "./utils";
 
 // Handler context for the main run handler (has full access including set)
@@ -38,46 +41,61 @@ export type WorkflowSharedHandlerContext<TState> = {
 } & BaseClientMethods;
 
 // Transform the run handler type to match Restate's expected format
-export type TransformRunHandler<TState, THandler> = TransformHandlers<
+type TransformRunHandler<TState, THandler> = TransformWorkflowHandler<
   WorkflowHandlerContext<TState>,
-  restate.WorkflowContext,
-  { run: THandler }
->['run'];
-
-// Transform shared handler types to match Restate's expected format
-export type TransformSharedHandlers<TState, THandlers> = TransformHandlers<
-  WorkflowSharedHandlerContext<TState>,
-  restate.WorkflowSharedContext,
-  THandlers
+  THandler
 >;
 
+// Transform shared handler types to match Restate's expected format
+type TransformSharedHandlers<TState, THandlers> = {
+  [K in keyof THandlers]: TransformWorkflowSharedHandler<
+    WorkflowSharedHandlerContext<TState>,
+    THandlers[K]
+  >;
+};
+
 // Combine run handler and shared handlers into a single type
-export type CombineHandlers<TRunHandler, TSharedHandlers> = {
+type CombineHandlers<TRunHandler, TSharedHandlers> = {
   run: TRunHandler;
 } & TSharedHandlers;
 
-// Constraint for workflow handlers with proper typing
-type WorkflowHandlerConstraint<TState> = {
-  run: (context: WorkflowHandlerContext<TState>, ...args: any[]) => Promise<any>;
-  [K: string]: (context: any, ...args: any[]) => Promise<any>;
-};
-
-// Create typed workflow with serde configuration
-export function createRestateWorkflow<
-  TState,
-  THandlers extends WorkflowHandlerConstraint<TState>
->(
+// The main factory function: state type is provided once, handlers are defined inline with a single object
+export function createRestateWorkflow<TState>(
   name: string,
-  inputHandlers: THandlers,
-  serde: restate.Serde<any>,
-): WorkflowDefinition<string, any> {
+  SerdeClass: new () => restate.Serde<TState>,
+) {
+  return <
+    THandlers extends {
+      [K in Exclude<keyof THandlers, "run">]: (
+        context: WorkflowSharedHandlerContext<TState>,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...args: any[]
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ) => Promise<any>;
+    } & {
+      run: (
+        context: WorkflowHandlerContext<TState>,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...args: any[]
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ) => Promise<any>;
+    },
+  >(
+    inputHandlers: THandlers,
+  ): WorkflowDefinition<
+    string,
+    CombineHandlers<
+      TransformRunHandler<TState, THandlers["run"]>,
+      TransformSharedHandlers<TState, Omit<THandlers, "run">>
+    >
+  > => {
     const { run: runHandler, ...sharedHandlers } = inputHandlers;
 
     // Transform the run handler
     const transformedRunHandler = restate.handlers.workflow.workflow(
       {
-        input: serde,
-        output: serde,
+        input: new SerdeClass(),
+        output: new SerdeClass(),
       },
       async (
         ctx: restate.WorkflowContext,
@@ -101,21 +119,21 @@ export function createRestateWorkflow<
           getState,
           setState,
           runStep,
-          service: (service) => {
+          service: (service, serde) => {
             console.log(
               "[typed-workflow] Creating service client, serde:",
               serde,
             );
             return createServiceClient(ctx, service, serde);
           },
-          serviceSend: (service) => {
+          serviceSend: (service, serde) => {
             console.log(
               "[typed-workflow] Creating service send client, serde:",
               serde,
             );
             return createServiceSendClient(ctx, service, serde);
           },
-          object: (object, key) => {
+          object: (object, key, serde) => {
             console.log(
               "[typed-workflow] Creating object client, key:",
               key,
@@ -124,7 +142,7 @@ export function createRestateWorkflow<
             );
             return createObjectClient(ctx, object, key, serde);
           },
-          objectSend: (object, key) => {
+          objectSend: (object, key, serde) => {
             console.log(
               "[typed-workflow] Creating object send client, key:",
               key,
@@ -133,7 +151,7 @@ export function createRestateWorkflow<
             );
             return createObjectSendClient(ctx, object, key, serde);
           },
-          workflow: (workflow, key) => {
+          workflow: (workflow, key, serde) => {
             console.log(
               "[typed-workflow] Creating workflow client, key:",
               key,
@@ -141,6 +159,15 @@ export function createRestateWorkflow<
               serde,
             );
             return createWorkflowClient(ctx, workflow, key, serde);
+          },
+          workflowSend: (workflow, key, serde) => {
+            console.log(
+              "[typed-workflow] Creating workflow send client, key:",
+              key,
+              "serde:",
+              serde,
+            );
+            return createWorkflowSendClient(ctx, workflow, key, serde);
           },
         };
         return runHandler(context, ...args);
@@ -154,8 +181,8 @@ export function createRestateWorkflow<
     for (const [key, handlerFn] of Object.entries(sharedHandlers)) {
       transformedSharedHandlers[key] = restate.handlers.workflow.shared(
         {
-          input: serde,
-          output: serde,
+          input: new SerdeClass(),
+          output: new SerdeClass(),
         },
         async (
           ctx: restate.WorkflowSharedContext,
@@ -172,21 +199,21 @@ export function createRestateWorkflow<
             ctx,
             getState,
             runStep,
-            service: (service) => {
+            service: (service, serde) => {
               console.log(
                 "[typed-workflow-shared] Creating service client, serde:",
                 serde,
               );
               return createServiceClient(ctx, service, serde);
             },
-            serviceSend: (service) => {
+            serviceSend: (service, serde) => {
               console.log(
                 "[typed-workflow-shared] Creating service send client, serde:",
                 serde,
               );
               return createServiceSendClient(ctx, service, serde);
             },
-            object: (object, key) => {
+            object: (object, key, serde) => {
               console.log(
                 "[typed-workflow-shared] Creating object client, key:",
                 key,
@@ -195,7 +222,7 @@ export function createRestateWorkflow<
               );
               return createObjectClient(ctx, object, key, serde);
             },
-            objectSend: (object, key) => {
+            objectSend: (object, key, serde) => {
               console.log(
                 "[typed-workflow-shared] Creating object send client, key:",
                 key,
@@ -204,7 +231,7 @@ export function createRestateWorkflow<
               );
               return createObjectSendClient(ctx, object, key, serde);
             },
-            workflow: (workflow, key) => {
+            workflow: (workflow, key, serde) => {
               console.log(
                 "[typed-workflow-shared] Creating workflow client, key:",
                 key,
@@ -212,6 +239,15 @@ export function createRestateWorkflow<
                 serde,
               );
               return createWorkflowClient(ctx, workflow, key, serde);
+            },
+            workflowSend: (workflow, key, serde) => {
+              console.log(
+                "[typed-workflow-shared] Creating workflow send client, key:",
+                key,
+                "serde:",
+                serde,
+              );
+              return createWorkflowSendClient(ctx, workflow, key, serde);
             },
           };
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -226,10 +262,17 @@ export function createRestateWorkflow<
       ...transformedSharedHandlers,
     };
 
-  return restate.workflow({
-    name,
-    handlers: transformedHandlers,
-  });
+    return restate.workflow({
+      name,
+      handlers: transformedHandlers,
+    }) as WorkflowDefinition<
+      string,
+      CombineHandlers<
+        TransformRunHandler<TState, THandlers["run"]>,
+        TransformSharedHandlers<TState, Omit<THandlers, "run">>
+      >
+    >;
+  };
 }
 
 // For backwards compatibility or alternative naming preference

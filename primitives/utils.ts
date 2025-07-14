@@ -1,10 +1,12 @@
 import * as restate from "@restatedev/restate-sdk";
-import type { Serde } from "@restatedev/restate-sdk-core";
+
+import { superjsonserde } from "./serde";
 
 // Common types
+export type SerdeOption<T> = "json" | "superjson" | restate.Serde<T>;
 
 export type BaseOpts<T> = {
-  serde?: Serde<T>;
+  serde?: SerdeOption<T>;
 };
 
 // Context types
@@ -14,6 +16,17 @@ export type GetContext = (
   | restate.WorkflowSharedContext
 ) &
   SetContext;
+
+// Helper to resolve serde option
+function resolveSerde<T>(opts?: BaseOpts<T>): restate.Serde<T> | undefined {
+  if (!opts?.serde || opts.serde === "superjson") {
+    return superjsonserde;
+  }
+  if (opts.serde === "json") {
+    return undefined;
+  }
+  return opts.serde;
+}
 
 // Run types and function
 export type RunFunc<T> = () => Promise<T>;
@@ -27,12 +40,12 @@ export const run = <T>(
 ) =>
   ctx.run<T>(name, action, {
     ...opts,
-    serde: opts?.serde,
+    serde: resolveSerde(opts),
   });
 
 // Get function
 export const get = <T>(ctx: GetContext, key: string, opts?: BaseOpts<T>) =>
-  ctx.get<T>(key, opts?.serde);
+  ctx.get<T>(key, resolveSerde(opts));
 
 // Set function
 export const set = <T>(
@@ -40,4 +53,4 @@ export const set = <T>(
   key: string,
   value: T,
   opts?: BaseOpts<T>,
-) => ctx.set(key, value, opts?.serde);
+) => ctx.set(key, value, resolveSerde(opts));

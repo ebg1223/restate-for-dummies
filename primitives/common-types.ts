@@ -3,14 +3,10 @@ import type {
   VirtualObjectDefinition,
   WorkflowDefinition,
 } from "@restatedev/restate-sdk";
-import type { IngressClient, IngressSendClient, IngressWorkflowClient } from "@restatedev/restate-sdk-clients";
 
 import * as restate from "@restatedev/restate-sdk";
 
 import type { BaseOpts, RunFunc, RunOpts } from "./utils";
-import type { ExtractHandlerSignature, BaseHandler, TransformHandler } from "./type-utils";
-export type { TransformHandler, TransformHandlers, HandlersToClient, HandlerCollection } from "./type-utils";
-
 
 // Type for the run function - shared across all primitives
 export type TypedRun = <T>(
@@ -38,52 +34,106 @@ export interface BaseClientMethods {
   object: <THandlers>(
     object: VirtualObjectDefinition<string, THandlers>,
     key: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    serde: restate.Serde<any>,
   ) => restate.Client<THandlers>;
   objectSend: <THandlers>(
     object: VirtualObjectDefinition<string, THandlers>,
     key: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    serde: restate.Serde<any>,
   ) => restate.SendClient<THandlers>;
   service: <THandlers>(
     service: ServiceDefinition<string, THandlers>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    serde: restate.Serde<any>,
   ) => restate.Client<THandlers>;
   serviceSend: <THandlers>(
     service: ServiceDefinition<string, THandlers>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    serde: restate.Serde<any>,
   ) => restate.SendClient<THandlers>;
   workflow: <THandlers>(
     workflow: WorkflowDefinition<string, THandlers>,
     key: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    serde: restate.Serde<any>,
   ) => restate.Client<THandlers>;
-}
-
-
-
-// Standalone clients interface
-export interface StandaloneClients {
-  service: <THandlers>(
-    service: ServiceDefinition<string, THandlers>
-  ) => IngressClient<THandlers>;
-  serviceSend: <THandlers>(
-    service: ServiceDefinition<string, THandlers>
-  ) => IngressSendClient<THandlers>;
-  object: <THandlers>(
-    object: VirtualObjectDefinition<string, THandlers>,
-    key: string
-  ) => IngressClient<THandlers>;
-  objectSend: <THandlers>(
-    object: VirtualObjectDefinition<string, THandlers>,
-    key: string
-  ) => IngressSendClient<THandlers>;
-  workflow: <THandlers>(
+  workflowSend: <THandlers>(
     workflow: WorkflowDefinition<string, THandlers>,
-    key: string
-  ) => IngressWorkflowClient<THandlers>;
+    key: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    serde: restate.Serde<any>,
+  ) => restate.SendClient<THandlers>;
 }
 
-// Extract handler type helper - simplified using utility
-export type ExtractHandlerType<T> = T extends BaseHandler<any>
-  ? ExtractHandlerSignature<T>
+// Handler transformation types for Object handlers
+export type TransformObjectHandler<TContext, THandler> = THandler extends (
+  context: TContext,
+  ...args: infer Args
+) => Promise<infer R>
+  ? Args extends []
+    ? (ctx: restate.ObjectContext) => Promise<R>
+    : Args extends [infer Arg]
+      ? (ctx: restate.ObjectContext, arg: Arg) => Promise<R>
+      : Args extends [infer Arg1, infer Arg2]
+        ? (ctx: restate.ObjectContext, arg1: Arg1, arg2: Arg2) => Promise<R>
+        : never
   : never;
 
-// Extract object state type helper
-export type ExtractObjectStateType<T> =
-  T extends VirtualObjectDefinition<string, any> ? T extends VirtualObjectDefinition<string, infer H> ? H extends Record<string, any> ? any : never : never : never;
+// Handler transformation types for Service handlers
+export type TransformServiceHandler<TContext, THandler> = THandler extends (
+  context: TContext,
+  ...args: infer Args
+) => Promise<infer R>
+  ? Args extends []
+    ? (ctx: restate.Context) => Promise<R>
+    : Args extends [infer Arg]
+      ? (ctx: restate.Context, arg: Arg) => Promise<R>
+      : Args extends [infer Arg1, infer Arg2]
+        ? (ctx: restate.Context, arg1: Arg1, arg2: Arg2) => Promise<R>
+        : never
+  : never;
+
+// Handler transformation types for Workflow handlers
+export type TransformWorkflowHandler<TContext, THandler> = THandler extends (
+  context: TContext,
+  ...args: infer Args
+) => Promise<infer R>
+  ? Args extends []
+    ? (ctx: restate.WorkflowContext) => Promise<R>
+    : Args extends [infer Arg]
+      ? (ctx: restate.WorkflowContext, arg: Arg) => Promise<R>
+      : Args extends [infer Arg1, infer Arg2]
+        ? (ctx: restate.WorkflowContext, arg1: Arg1, arg2: Arg2) => Promise<R>
+        : never
+  : never;
+
+// Handler transformation types for Workflow shared handlers
+export type TransformWorkflowSharedHandler<TContext, THandler> =
+  THandler extends (context: TContext, ...args: infer Args) => Promise<infer R>
+    ? Args extends []
+      ? (ctx: restate.WorkflowSharedContext) => Promise<R>
+      : Args extends [infer Arg]
+        ? (ctx: restate.WorkflowSharedContext, arg: Arg) => Promise<R>
+        : Args extends [infer Arg1, infer Arg2]
+          ? (
+              ctx: restate.WorkflowSharedContext,
+              arg1: Arg1,
+              arg2: Arg2,
+            ) => Promise<R>
+          : never
+    : never;
+
+// Base handler type that all handlers must conform to
+export type BaseHandler<TContext> = (
+  context: TContext,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ...args: any[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+) => Promise<any>;
+
+// Handler collection type
+export type HandlerCollection<TContext> = {
+  [key: string]: BaseHandler<TContext>;
+};
