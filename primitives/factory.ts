@@ -17,11 +17,18 @@ import {
   createServiceSendClient,
   createWorkflowSendClient,
 } from "./standalone-clients";
-import { standaloneServiceClient } from ".";
+
 import { run } from "./utils";
 import * as restate from "@restatedev/restate-sdk-clients";
 
-export function getRestate(SerdeClass: new () => Serde<any>, url: string) {
+export function getRestate({
+  SerdeClass = restate.serde.JsonSerde<any> as new () => Serde<any>,
+  restateUrl,
+}: {
+  SerdeClass?: new () => Serde<any>;
+  restateUrl?: string;
+} = {}) {
+  const url = restateUrl ?? process.env.RESTATE_URL ?? "http://localhost:8080";
   const createObject = <T>(name: string) => typedObject<T>(name, SerdeClass);
   const createService = (name: string) => typedService(name, SerdeClass);
   const createWorkflow = <T>(name: string) =>
@@ -54,34 +61,3 @@ export function getRestate(SerdeClass: new () => Serde<any>, url: string) {
     standaloneClients,
   } as const;
 }
-
-const factest = getRestate(restate.serde.JsonSerde, "http://localhost:3000");
-
-const obj = factest.createObject<{
-  num: number;
-}>("hi")({
-  hi: async ({ ctx, setState, getState }) => {
-    setState("num", 1);
-    const n = await getState("num");
-    return n;
-  },
-});
-
-const serv = factest.createService("hi")({
-  hi: async ({ ctx, object, runStep, service }) => {
-    console.log("hi");
-  },
-});
-
-const workflow = factest.createWorkflow<{
-  hi: string;
-}>("workflow")({
-  run: async ({ ctx, setState }) => {
-    setState("hi", "hello");
-    return true;
-  },
-  hi: async ({ ctx, getState }) => {
-    const n = await getState("hi");
-    return n;
-  },
-});
