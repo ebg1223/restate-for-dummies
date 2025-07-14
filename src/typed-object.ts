@@ -23,7 +23,7 @@ import {
 import { get as rawGet, run as rawRun, set as rawSet } from "./utils";
 
 // Handler context that can be destructured
-export type HandlerContext<TState> = {
+export type ObjectHandlerContext<TState> = {
   clearState: TypedClear<TState>;
   ctx: restate.ObjectContext;
   getState: TypedGet<TState>;
@@ -31,15 +31,20 @@ export type HandlerContext<TState> = {
   setState: TypedSet<TState>;
 } & BaseClientMethods;
 
+// Alias for backwards compatibility
+export type HandlerContext<TState> = ObjectHandlerContext<TState>;
+
 // Transform handler types to match Restate's expected format
 type TransformHandlers<TState, THandlers> = {
   [K in keyof THandlers]: TransformObjectHandler<
-    HandlerContext<TState>,
+    ObjectHandlerContext<TState>,
     THandlers[K]
   >;
 };
 
 // The working solution: state type is provided once, handlers are defined inline
+// Note: The context parameter MUST be in the constraint for TypeScript to infer it properly
+// when using destructuring syntax like ({ getState, setState }, arg1, arg2)
 export function typedObject<TState>(
   name: string,
   SerdeClass: new <T>() => restate.Serde<T>,
@@ -47,7 +52,7 @@ export function typedObject<TState>(
   return <
     THandlers extends {
       [key: string]: (
-        context: HandlerContext<TState>,
+        context: ObjectHandlerContext<TState>,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...args: any[]
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -86,7 +91,7 @@ export function typedObject<TState>(
             opts?: Parameters<typeof rawRun<T>>[4],
           ) => rawRun<T>(ctx, name, action, new SerdeClass<T>(), opts);
 
-          const context: HandlerContext<TState> = {
+          const context: ObjectHandlerContext<TState> = {
             clearState,
             ctx,
             getState,

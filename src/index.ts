@@ -12,7 +12,7 @@ export type {
   TransformHandlers as TransformServiceHandlers,
 } from "./typed-service";
 
-export type { HandlerContext as ObjectHandlerContext } from "./typed-object";
+export type { ObjectHandlerContext, HandlerContext } from "./typed-object";
 
 export type {
   WorkflowHandlerContext,

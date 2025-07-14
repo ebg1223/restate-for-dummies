@@ -8,7 +8,7 @@ await $`rm -rf dist`;
 
 // Build TypeScript declarations
 console.log("📝 Building TypeScript declarations...");
-await $`tsc -p tsconfig.build.json`;
+await $`bunx tsc -p tsconfig.build.json`;
 
 // Build with Bun
 console.log("📦 Building with Bun...");
