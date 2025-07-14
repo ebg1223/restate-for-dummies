@@ -46,10 +46,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/restate-for-dummies"
+    "url": "https://github.com/ebg1223/restate-for-dummies"
   },
   "bugs": {
-    "url": "https://github.com/your-org/restate-for-dummies/issues"
+    "url": "https://github.com/ebg1223/restate-for-dummies/issues"
   },
-  "homepage": "https://github.com/your-org/restate-for-dummies#readme"
+  "homepage": "https://github.com/ebg1223/restate-for-dummies#readme"
 }
