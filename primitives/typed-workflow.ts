@@ -4,13 +4,12 @@ import * as restate from "@restatedev/restate-sdk";
 
 import type {
   BaseClientMethods,
-  TransformWorkflowHandler,
-  TransformWorkflowSharedHandler,
   TypedClear,
   TypedGet,
   TypedRun,
   TypedSet,
 } from "./common-types";
+import type { TransformHandlers } from "./type-utils";
 import type { GetContext } from "./utils";
 
 import {
@@ -39,53 +38,39 @@ export type WorkflowSharedHandlerContext<TState> = {
 } & BaseClientMethods;
 
 // Transform the run handler type to match Restate's expected format
-export type TransformRunHandler<TState, THandler> = TransformWorkflowHandler<
+export type TransformRunHandler<TState, THandler> = TransformHandlers<
   WorkflowHandlerContext<TState>,
-  THandler
->;
+  restate.WorkflowContext,
+  { run: THandler }
+>['run'];
 
 // Transform shared handler types to match Restate's expected format
-export type TransformSharedHandlers<TState, THandlers> = {
-  [K in keyof THandlers]: TransformWorkflowSharedHandler<
-    WorkflowSharedHandlerContext<TState>,
-    THandlers[K]
-  >;
-};
+export type TransformSharedHandlers<TState, THandlers> = TransformHandlers<
+  WorkflowSharedHandlerContext<TState>,
+  restate.WorkflowSharedContext,
+  THandlers
+>;
 
 // Combine run handler and shared handlers into a single type
 export type CombineHandlers<TRunHandler, TSharedHandlers> = {
   run: TRunHandler;
 } & TSharedHandlers;
 
+// Constraint for workflow handlers with proper typing
+type WorkflowHandlerConstraint<TState> = {
+  run: (context: WorkflowHandlerContext<TState>, ...args: any[]) => Promise<any>;
+  [K: string]: (context: any, ...args: any[]) => Promise<any>;
+};
+
 // Create typed workflow with serde configuration
 export function createRestateWorkflow<
   TState,
-  THandlers extends {
-    [K in Exclude<keyof THandlers, "run">]: (
-      context: WorkflowSharedHandlerContext<TState>,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ...args: any[]
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ) => Promise<any>;
-  } & {
-    run: (
-      context: WorkflowHandlerContext<TState>,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ...args: any[]
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ) => Promise<any>;
-  },
+  THandlers extends WorkflowHandlerConstraint<TState>
 >(
   name: string,
   inputHandlers: THandlers,
   serde: restate.Serde<any>,
-): WorkflowDefinition<
-  string,
-  CombineHandlers<
-    TransformRunHandler<TState, THandlers["run"]>,
-    TransformSharedHandlers<TState, Omit<THandlers, "run">>
-  >
-> {
+): WorkflowDefinition<string, any> {
     const { run: runHandler, ...sharedHandlers } = inputHandlers;
 
     // Transform the run handler
@@ -244,13 +229,7 @@ export function createRestateWorkflow<
   return restate.workflow({
     name,
     handlers: transformedHandlers,
-  }) as WorkflowDefinition<
-    string,
-    CombineHandlers<
-      TransformRunHandler<TState, THandlers["run"]>,
-      TransformSharedHandlers<TState, Omit<THandlers, "run">>
-    >
-  >;
+  });
 }
 
 // For backwards compatibility or alternative naming preference

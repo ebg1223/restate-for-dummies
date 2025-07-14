@@ -10,8 +10,6 @@ export type {
   FactoryConfig,
   RestateFactory,
   ClientType,
-  ObjectClientType,
-  WorkflowClientType,
 } from "./types";
 
 // Export handler context types for users who need them
@@ -24,9 +22,6 @@ export type {
 
 // Export common types if users need them
 export type {
-  TypedService,
-  TypedObject,
-  TypedWorkflow,
   ExtractHandlerType,
   ExtractObjectStateType,
 } from "./common-types";

@@ -235,8 +235,8 @@ async function externalSystemIntegration() {
 
   const workflowClient = clients.workflow(orderWorkflow, "order_456");
   // Submit the workflow and wait for completion
-  const submission = await workflowClient.workflowSubmit();
-  const result = await workflowClient.workflowAttach();
+  const submission = await workflowClient.workflowSubmit!();
+  const result = await workflowClient.workflowAttach!();
 
   // Send delayed invocations
   const sendClient = clients.serviceSend(userService);

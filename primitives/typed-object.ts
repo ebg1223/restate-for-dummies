@@ -4,12 +4,12 @@ import * as restate from "@restatedev/restate-sdk";
 
 import type {
   BaseClientMethods,
-  TransformObjectHandler,
   TypedClear,
   TypedGet,
   TypedRun,
   TypedSet,
 } from "./common-types";
+import type { TransformHandlers } from "./type-utils";
 import type { GetContext, SetContext } from "./utils";
 
 import {
@@ -31,12 +31,11 @@ export type HandlerContext<TState> = {
 } & BaseClientMethods;
 
 // Transform handler types to match Restate's expected format
-export type TransformObjectHandlers<TState, THandlers> = {
-  [K in keyof THandlers]: TransformObjectHandler<
-    HandlerContext<TState>,
-    THandlers[K]
-  >;
-};
+export type TransformObjectHandlers<TState, THandlers> = TransformHandlers<
+  HandlerContext<TState>,
+  restate.ObjectContext,
+  THandlers
+>;
 
 // Create typed object with serde configuration
 export function createRestateObject<TState>(
@@ -51,53 +50,32 @@ export function createRestateObject<TState>(
   },
   serde: restate.Serde<any>,
 ): VirtualObjectDefinition<string, TransformObjectHandlers<TState, typeof handlers>> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const transformedHandlers: any = {};
-
-    for (const [key, handlerFn] of Object.entries(handlers)) {
-      transformedHandlers[key] = restate.handlers.object.exclusive(
-        {
-          input: serde,
-          output: serde,
-        },
-        async (
-          ctx: restate.ObjectContext,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...args: any[]
-        ) => {
-          const getState: TypedGet<TState> = (key, opts) =>
-            rawGet(ctx as GetContext, key as string, opts);
-
-          const setState: TypedSet<TState> = (key, value, opts) =>
-            rawSet(ctx as SetContext, key as string, value, opts);
-
-          const clearState: TypedClear<TState> = (key) =>
-            ctx.clear(key as string);
-
-          const runStep: TypedRun = (name, action, opts) =>
-            rawRun(ctx, name, action, opts);
-
-          const context: HandlerContext<TState> = {
-            clearState,
-            ctx,
-            getState,
-            runStep,
-            setState,
-            service: (service) =>
-              createServiceClient(ctx, service, serde),
-            serviceSend: (service) =>
-              createServiceSendClient(ctx, service, serde),
-            object: (object, key) =>
-              createObjectClient(ctx, object, key, serde),
-            objectSend: (object, key) =>
-              createObjectSendClient(ctx, object, key, serde),
-            workflow: (workflow, key) =>
-              createWorkflowClient(ctx, workflow, key, serde),
-          };
-          return handlerFn(context, ...args);
-        },
-      );
-    }
+    // Use mapped types to preserve handler structure
+    const transformedHandlers = Object.fromEntries(
+      Object.entries(handlers).map(([key, handlerFn]) => [
+        key,
+        restate.handlers.object.exclusive(
+          { input: serde, output: serde },
+          async (ctx, ...args) => {
+            // Create context with proper typing
+            const context = {
+              ctx,
+              getState: (key, opts) => rawGet(ctx as GetContext, key as string, opts),
+              setState: (key, value, opts) => rawSet(ctx as SetContext, key as string, value, opts),
+              clearState: (key) => ctx.clear(key as string),
+              runStep: (name, action, opts) => rawRun(ctx, name, action, opts),
+              service: (service) => createServiceClient(ctx, service, serde),
+              serviceSend: (service) => createServiceSendClient(ctx, service, serde),
+              object: (object, key) => createObjectClient(ctx, object, key, serde),
+              objectSend: (object, key) => createObjectSendClient(ctx, object, key, serde),
+              workflow: (workflow, key) => createWorkflowClient(ctx, workflow, key, serde),
+            } as HandlerContext<TState>;
+            
+            return handlerFn(context, ...args);
+          }
+        ),
+      ])
+    );
 
   return restate.object({
     name,

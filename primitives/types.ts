@@ -1,12 +1,15 @@
 import * as restate from "@restatedev/restate-sdk";
 import type { Serde } from "@restatedev/restate-sdk-core";
 import type {
-  TypedService,
-  TypedObject,
-  TypedWorkflow,
+  ServiceDefinition,
+  VirtualObjectDefinition,
+  WorkflowDefinition,
+} from "@restatedev/restate-sdk";
+import type {
   StandaloneClients,
   ExtractHandlerType,
   ExtractObjectStateType,
+  HandlersToClient,
 } from "./common-types";
 import type { ServiceHandlerContext, TransformServiceHandlers } from "./typed-service";
 import type { HandlerContext as ObjectHandlerContext, TransformObjectHandlers } from "./typed-object";
@@ -23,6 +26,31 @@ import type {
  * Matches Restate SDK's requirements
  */
 export type { Serde } from "@restatedev/restate-sdk-core";
+
+/**
+ * Workflow handler constraints
+ */
+export type WorkflowRunHandler = (context: WorkflowHandlerContext<any>, ...args: any[]) => Promise<any>;
+export type WorkflowSharedHandler = (context: WorkflowSharedHandlerContext<any>, ...args: any[]) => Promise<any>;
+
+export type WorkflowHandlers = {
+  [K in string]: K extends 'run' ? WorkflowRunHandler : WorkflowSharedHandler;
+} & {
+  run: WorkflowRunHandler;
+};
+
+/**
+ * Helper types for improved object type inference
+ */
+export type ObjectDefinition<State> = 
+  | Record<string, (context: ObjectHandlerContext<State>, ...args: any[]) => Promise<any>>
+  | { state?: State; handlers: Record<string, (context: ObjectHandlerContext<State>, ...args: any[]) => Promise<any>> };
+
+export type InferObjectType<T> = T extends { state?: infer S; handlers: infer H }
+  ? VirtualObjectDefinition<string, TransformObjectHandlers<S, H>>
+  : T extends Record<string, any>
+  ? VirtualObjectDefinition<string, TransformObjectHandlers<unknown, T>>
+  : never;
 
 /**
  * Configuration for the Restate factory
@@ -43,24 +71,26 @@ export interface RestateFactory {
   /**
    * Create a typed service with automatic serde injection
    */
-  service<Handlers extends Record<string, (
-    context: ServiceHandlerContext,
-    ...args: any[]
-  ) => Promise<any>>>(
+  service<Handlers extends Record<string, (context: ServiceHandlerContext, ...args: any[]) => Promise<any>>>(
     name: string,
     handlers: Handlers
   ): restate.ServiceDefinition<string, TransformServiceHandlers<Handlers>>;
 
   /**
    * Create a typed object with automatic serde injection
+   * Supports both direct handlers or object with state type
+   * @example
+   * // Direct handlers (state type inferred as unknown)
+   * restate.object("Counter", {
+   *   increment: async ({ getState, setState }) => { ... }
+   * })
+   * 
+   * // With explicit state type
+   * restate.object<{ count: number }>("Counter", {
+   *   increment: async ({ getState, setState }) => { ... }
+   * })
    */
-  object<State, Handlers extends Record<string, (
-    context: ObjectHandlerContext<State>,
-    ...args: any[]
-  ) => Promise<any>>>(
-    name: string,
-    handlers: Handlers
-  ): restate.VirtualObjectDefinition<string, TransformObjectHandlers<State, Handlers>>;
+  object<T extends ObjectDefinition<any>>(name: string, definition: T): InferObjectType<T>;
 
   /**
    * Alternative object creation with better type inference
@@ -79,19 +109,12 @@ export interface RestateFactory {
    * Create a typed workflow with automatic serde injection
    */
   workflow<Handlers extends {
-    [K in Exclude<keyof Handlers, "run">]: (
-      context: WorkflowSharedHandlerContext<any>,
-      ...args: any[]
-    ) => Promise<any>;
-  } & {
     run: (context: WorkflowHandlerContext<any>, ...args: any[]) => Promise<any>;
-  }>(
+    [K: string]: (context: any, ...args: any[]) => Promise<any>;
+  }, State = any>(
     name: string,
     handlers: Handlers
-  ): restate.WorkflowDefinition<string, CombineHandlers<
-    TransformRunHandler<any, Handlers["run"]>,
-    TransformSharedHandlers<any, Omit<Handlers, "run">>
-  >>;
+  ): restate.WorkflowDefinition<string, any>;
 
   /**
    * Create standalone clients for use outside Restate contexts
@@ -106,27 +129,14 @@ export interface RestateFactory {
 }
 
 /**
- * Type helper to extract client type from a service
+ * Simplified client type extraction using HandlersToClient utility
  */
-export type ClientType<T> = T extends TypedService<infer H>
-  ? { [K in keyof H]: ExtractHandlerType<H[K]> }
-  : never;
-
-/**
- * Type helper to extract object client type
- */
-export type ObjectClientType<T> = T extends TypedObject<infer S, infer H>
-  ? { [K in keyof H]: ExtractHandlerType<H[K]> }
-  : never;
-
-/**
- * Type helper to extract workflow client type
- */
-export type WorkflowClientType<T> = T extends TypedWorkflow<infer H>
-  ? H extends { run: infer R }
-    ? {
-        run: ExtractHandlerType<R>;
-        getStatus(): Promise<any>; // WorkflowStatus type not exported by SDK
-      } & { [K in Exclude<keyof H, "run">]: ExtractHandlerType<H[K]> }
-    : never
+export type ClientType<T> = T extends ServiceDefinition<any, infer H>
+  ? HandlersToClient<H>
+  : T extends VirtualObjectDefinition<any, infer H>
+  ? HandlersToClient<H>
+  : T extends WorkflowDefinition<any, infer H>
+  ? HandlersToClient<H> & {
+      getStatus(): Promise<any>; // WorkflowStatus type not exported by SDK
+    }
   : never;

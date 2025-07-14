@@ -1,11 +1,6 @@
 import * as restate from "@restatedev/restate-sdk";
 import type { Serde } from "@restatedev/restate-sdk-core";
-import type { FactoryConfig, RestateFactory } from "./types";
-import type {
-  TypedService,
-  TypedObject,
-  TypedWorkflow,
-} from "./common-types";
+import type { FactoryConfig, RestateFactory, ObjectDefinition, InferObjectType } from "./types";
 import type { ServiceHandlerContext } from "./typed-service";
 import type { HandlerContext as ObjectHandlerContext, TransformObjectHandlers } from "./typed-object";
 import type { WorkflowHandlerContext, WorkflowSharedHandlerContext } from "./typed-workflow";
@@ -48,52 +43,38 @@ export function createRestateFactory(config: FactoryConfig): RestateFactory {
   const { serde } = config;
 
   return {
-    service<Handlers extends Record<string, (
-      context: ServiceHandlerContext,
-      ...args: any[]
-    ) => Promise<any>>>(
+    service<Handlers extends Record<string, (context: ServiceHandlerContext, ...args: any[]) => Promise<any>>>(
       name: string,
       handlers: Handlers
     ) {
-      // Create service with factory serde
       return typedService(name, handlers, serde);
     },
 
-    object<State, Handlers extends Record<string, (
-      context: ObjectHandlerContext<State>,
-      ...args: any[]
-    ) => Promise<any>>>(
-      name: string,
-      handlers: Handlers
-    ) {
-      // Create object with factory serde
-      return typedObjectWithSerde<State, Handlers>(name, handlers, serde);
+    // Improved object method with better type inference
+    object<T extends ObjectDefinition<any>>(name: string, definition: T) {
+      const handlers = (definition && typeof definition === 'object' && 'handlers' in definition && !Array.isArray(definition)) 
+        ? definition.handlers 
+        : definition;
+      return typedObject(name, handlers as any, serde) as InferObjectType<T>;
     },
 
-    // Alternative API with better type inference
+    // Keep builder API for backwards compatibility
     objectWithState<State>(name: string) {
       return {
         handlers<Handlers extends Record<string, (
           context: ObjectHandlerContext<State>,
           ...args: any[]
         ) => Promise<any>>>(handlers: Handlers) {
-          return typedObjectWithSerde<State, Handlers>(name, handlers, serde);
+          return typedObject<State>(name, handlers, serde) as restate.VirtualObjectDefinition<string, TransformObjectHandlers<State, Handlers>>;
         }
       };
     },
 
-    workflow<
-      Handlers extends {
-        [K in Exclude<keyof Handlers, "run">]: (
-          context: WorkflowSharedHandlerContext<any>,
-          ...args: any[]
-        ) => Promise<any>;
-      } & {
-        run: (context: WorkflowHandlerContext<any>, ...args: any[]) => Promise<any>;
-      }
-    >(name: string, handlers: Handlers) {
-      // Create workflow with factory serde
-      return typedWorkflowWithSerde(name, handlers, serde);
+    workflow<Handlers extends {
+      run: (context: WorkflowHandlerContext<any>, ...args: any[]) => Promise<any>;
+      [K: string]: (context: any, ...args: any[]) => Promise<any>;
+    }, State = any>(name: string, handlers: Handlers) {
+      return typedWorkflow<State, Handlers>(name, handlers, serde);
     },
 
     standaloneClients(baseUrl: string) {
@@ -115,29 +96,3 @@ export function createRestateFactory(config: FactoryConfig): RestateFactory {
   };
 }
 
-// Helper functions to adapt existing implementations to accept serde
-// These will be replaced when we update the primitive implementations
-
-function typedObjectWithSerde<State, Handlers extends Record<string, (
-  context: ObjectHandlerContext<State>,
-  ...args: any[]
-) => Promise<any>>>(
-  name: string,
-  handlers: Handlers,
-  serde: Serde<any>
-) {
-  return typedObject(name, handlers, serde) as restate.VirtualObjectDefinition<string, TransformObjectHandlers<State, Handlers>>;
-}
-
-function typedWorkflowWithSerde<
-  Handlers extends {
-    [K in Exclude<keyof Handlers, "run">]: (
-      context: WorkflowSharedHandlerContext<any>,
-      ...args: any[]
-    ) => Promise<any>;
-  } & {
-    run: (context: WorkflowHandlerContext<any>, ...args: any[]) => Promise<any>;
-  }
->(name: string, handlers: Handlers, serde: Serde<any>) {
-  return typedWorkflow(name, handlers, serde);
-}
