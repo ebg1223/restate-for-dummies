@@ -20,7 +20,6 @@ import {
   createWorkflowClient,
   createWorkflowSendClient,
 } from "./client-wrapper";
-import { SuperJsonSerde } from "./serde";
 import { get as rawGet, run as rawRun, set as rawSet } from "./utils";
 
 // Handler context that can be destructured
@@ -33,35 +32,34 @@ export type HandlerContext<TState> = {
 } & BaseClientMethods;
 
 // Transform handler types to match Restate's expected format
-type TransformHandlers<TState, THandlers> = {
+export type TransformObjectHandlers<TState, THandlers> = {
   [K in keyof THandlers]: TransformObjectHandler<
     HandlerContext<TState>,
     THandlers[K]
   >;
 };
 
-// The working solution: state type is provided once, handlers are defined inline
-export function typedObject<TState>(name: string) {
-  return <
-    THandlers extends {
-      [key: string]: (
-        context: HandlerContext<TState>,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ...args: any[]
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ) => Promise<any>;
-    },
-  >(
-    handlers: THandlers,
-  ): VirtualObjectDefinition<string, TransformHandlers<TState, THandlers>> => {
+// Create typed object with serde configuration
+export function createRestateObject<TState>(
+  name: string,
+  handlers: {
+    [key: string]: (
+      context: HandlerContext<TState>,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...args: any[]
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ) => Promise<any>;
+  },
+  serde: restate.Serde<any>,
+): VirtualObjectDefinition<string, TransformObjectHandlers<TState, typeof handlers>> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transformedHandlers: any = {};
 
     for (const [key, handlerFn] of Object.entries(handlers)) {
       transformedHandlers[key] = restate.handlers.object.exclusive(
         {
-          input: new SuperJsonSerde(),
-          output: new SuperJsonSerde(),
+          input: serde,
+          output: serde,
         },
         async (
           ctx: restate.ObjectContext,
@@ -86,17 +84,17 @@ export function typedObject<TState>(name: string) {
             getState,
             runStep,
             setState,
-            service: (service, serde) =>
+            service: (service) =>
               createServiceClient(ctx, service, serde),
-            serviceSend: (service, serde) =>
+            serviceSend: (service) =>
               createServiceSendClient(ctx, service, serde),
-            object: (object, key, serde) =>
+            object: (object, key) =>
               createObjectClient(ctx, object, key, serde),
-            objectSend: (object, key, serde) =>
+            objectSend: (object, key) =>
               createObjectSendClient(ctx, object, key, serde),
-            workflow: (workflow, key, serde) =>
+            workflow: (workflow, key) =>
               createWorkflowClient(ctx, workflow, key, serde),
-            workflowSend: (workflow, key, serde) =>
+            workflowSend: (workflow, key) =>
               createWorkflowSendClient(ctx, workflow, key, serde),
           };
           return handlerFn(context, ...args);
@@ -104,12 +102,11 @@ export function typedObject<TState>(name: string) {
       );
     }
 
-    return restate.object({
-      name,
-      handlers: transformedHandlers,
-    }) as VirtualObjectDefinition<string, TransformHandlers<TState, THandlers>>;
-  };
+  return restate.object({
+    name,
+    handlers: transformedHandlers,
+  }) as VirtualObjectDefinition<string, TransformObjectHandlers<TState, typeof handlers>>;
 }
 
 // For backwards compatibility with existing code
-export { typedObject as createRestateObject };
+export { createRestateObject as typedObject };

@@ -25,7 +25,7 @@ export type ServiceHandlerContext = {
 } & BaseClientMethods;
 
 // Transform handler types to match Restate's expected format
-type TransformHandlers<THandlers> = {
+export type TransformServiceHandlers<THandlers> = {
   [K in keyof THandlers]: TransformServiceHandler<
     ServiceHandlerContext,
     THandlers[K]
@@ -42,21 +42,20 @@ export function createRestateService<
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ) => Promise<any>;
   },
-  SState,
 >(
   name: string,
   handlers: THandlers,
-  SerdeClass: new () => restate.Serde<SState>,
-): ServiceDefinition<string, TransformHandlers<THandlers>> {
+  serde: restate.Serde<any>,
+): ServiceDefinition<string, TransformServiceHandlers<THandlers>> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const transformedHandlers: any = {};
 
   for (const [key, handlerFn] of Object.entries(handlers)) {
-    // Wrap each handler with SuperJsonSerde
+    // Wrap each handler with provided serde
     transformedHandlers[key] = restate.handlers.handler(
       {
-        input: new SerdeClass(),
-        output: new SerdeClass(),
+        input: serde,
+        output: serde,
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       async (ctx: restate.Context, ...args: any[]) => {
@@ -66,16 +65,16 @@ export function createRestateService<
         const context: ServiceHandlerContext = {
           ctx,
           runStep,
-          service: (service, serde) => createServiceClient(ctx, service, serde),
-          serviceSend: (service, serde) =>
+          service: (service) => createServiceClient(ctx, service, serde),
+          serviceSend: (service) =>
             createServiceSendClient(ctx, service, serde),
-          object: (object, key, serde) =>
+          object: (object, key) =>
             createObjectClient(ctx, object, key, serde),
-          objectSend: (object, key, serde) =>
+          objectSend: (object, key) =>
             createObjectSendClient(ctx, object, key, serde),
-          workflow: (workflow, key, serde) =>
+          workflow: (workflow, key) =>
             createWorkflowClient(ctx, workflow, key, serde),
-          workflowSend: (workflow, key, serde) =>
+          workflowSend: (workflow, key) =>
             createWorkflowSendClient(ctx, workflow, key, serde),
         };
         return handlerFn(context, ...args);
@@ -86,7 +85,7 @@ export function createRestateService<
   return restate.service({
     name,
     handlers: transformedHandlers,
-  }) as ServiceDefinition<string, TransformHandlers<THandlers>>;
+  }) as ServiceDefinition<string, TransformServiceHandlers<THandlers>>;
 }
 
 // For backwards compatibility or alternative naming preference

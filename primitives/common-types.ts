@@ -3,10 +3,19 @@ import type {
   VirtualObjectDefinition,
   WorkflowDefinition,
 } from "@restatedev/restate-sdk";
+import type { IngressClient, IngressSendClient, IngressWorkflowClient } from "@restatedev/restate-sdk-clients";
 
 import * as restate from "@restatedev/restate-sdk";
 
 import type { BaseOpts, RunFunc, RunOpts } from "./utils";
+
+// Exported types for primitives
+export type TypedService<Handlers> = ServiceDefinition<string, Handlers>;
+export type TypedObject<State, Handlers> = VirtualObjectDefinition<
+  string,
+  Handlers
+>;
+export type TypedWorkflow<Handlers> = WorkflowDefinition<string, Handlers>;
 
 // Type for the run function - shared across all primitives
 export type TypedRun = <T>(
@@ -34,36 +43,24 @@ export interface BaseClientMethods {
   object: <THandlers>(
     object: VirtualObjectDefinition<string, THandlers>,
     key: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    serde: restate.Serde<any>,
   ) => restate.Client<THandlers>;
   objectSend: <THandlers>(
     object: VirtualObjectDefinition<string, THandlers>,
     key: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    serde: restate.Serde<any>,
   ) => restate.SendClient<THandlers>;
   service: <THandlers>(
     service: ServiceDefinition<string, THandlers>,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    serde: restate.Serde<any>,
   ) => restate.Client<THandlers>;
   serviceSend: <THandlers>(
     service: ServiceDefinition<string, THandlers>,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    serde: restate.Serde<any>,
   ) => restate.SendClient<THandlers>;
   workflow: <THandlers>(
     workflow: WorkflowDefinition<string, THandlers>,
     key: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    serde: restate.Serde<any>,
   ) => restate.Client<THandlers>;
   workflowSend: <THandlers>(
     workflow: WorkflowDefinition<string, THandlers>,
     key: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    serde: restate.Serde<any>,
   ) => restate.SendClient<THandlers>;
 }
 
@@ -137,3 +134,40 @@ export type BaseHandler<TContext> = (
 export type HandlerCollection<TContext> = {
   [key: string]: BaseHandler<TContext>;
 };
+
+// Standalone clients interface
+export interface StandaloneClients {
+  service: <THandlers>(
+    service: ServiceDefinition<string, THandlers>
+  ) => IngressClient<THandlers>;
+  serviceSend: <THandlers>(
+    service: ServiceDefinition<string, THandlers>
+  ) => IngressSendClient<THandlers>;
+  object: <THandlers>(
+    object: VirtualObjectDefinition<string, THandlers>,
+    key: string
+  ) => IngressClient<THandlers>;
+  objectSend: <THandlers>(
+    object: VirtualObjectDefinition<string, THandlers>,
+    key: string
+  ) => IngressSendClient<THandlers>;
+  workflow: <THandlers>(
+    workflow: WorkflowDefinition<string, THandlers>,
+    key: string
+  ) => IngressWorkflowClient<THandlers>;
+  workflowSend: <THandlers>(
+    workflow: WorkflowDefinition<string, THandlers>,
+    key: string
+  ) => IngressWorkflowClient<THandlers>;
+}
+
+// Extract handler type helper
+export type ExtractHandlerType<T> = T extends (
+  ...args: infer Args
+) => Promise<infer R>
+  ? (...args: Args) => Promise<R>
+  : never;
+
+// Extract object state type helper
+export type ExtractObjectStateType<T> =
+  T extends TypedObject<infer S, any> ? S : never;

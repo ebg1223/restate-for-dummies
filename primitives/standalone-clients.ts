@@ -22,6 +22,16 @@ export const getRestateClient = () => {
   });
   return ingress;
 };
+
+// Cache for ingress clients by URL
+const ingressCache = new Map<string, restate.Ingress>();
+
+export const getRestateClientForUrl = (url: string) => {
+  if (!ingressCache.has(url)) {
+    ingressCache.set(url, restate.connect({ url }));
+  }
+  return ingressCache.get(url)!;
+};
 /**
  * Standalone typed client functions for use outside of Restate contexts.
  * These functions create properly typed clients with automatic SuperJSON serde handling.
@@ -52,6 +62,23 @@ export function createServiceClient<THandlers>(
 }
 
 /**
+ * Creates a typed service client with custom base URL
+ * @param baseUrl The Restate server URL
+ * @param service The service definition
+ * @param serde The serialization/deserialization configuration
+ */
+export function createStandaloneServiceClient<THandlers>(
+  baseUrl: string,
+  service: ServiceDefinition<string, THandlers>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  serde: Serde<any>,
+) {
+  const ingress = getRestateClientForUrl(baseUrl);
+  const rawClient = ingress.serviceClient(service);
+  return wrapIngressClient(rawClient, serde);
+}
+
+/**
  * Creates a typed service send client for use outside of Restate contexts
  * Automatically applies SuperJSON serde for proper type serialization
  * @param service The service definition
@@ -63,6 +90,23 @@ export function createServiceSendClient<THandlers>(
   serde: Serde<any>,
 ) {
   const ingress = getRestateClient();
+  const rawClient = ingress.serviceSendClient(service);
+  return wrapIngressSendClient(rawClient, serde);
+}
+
+/**
+ * Creates a typed service send client with custom base URL
+ * @param baseUrl The Restate server URL
+ * @param service The service definition
+ * @param serde The serialization/deserialization configuration
+ */
+export function createStandaloneServiceSendClient<THandlers>(
+  baseUrl: string,
+  service: ServiceDefinition<string, THandlers>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  serde: Serde<any>,
+) {
+  const ingress = getRestateClientForUrl(baseUrl);
   const rawClient = ingress.serviceSendClient(service);
   return wrapIngressSendClient(rawClient, serde);
 }
@@ -86,6 +130,25 @@ export function createObjectClient<THandlers>(
 }
 
 /**
+ * Creates a typed object client with custom base URL
+ * @param baseUrl The Restate server URL
+ * @param object The virtual object definition
+ * @param key The unique identifier for the object instance
+ * @param serde The serialization/deserialization configuration
+ */
+export function createStandaloneObjectClient<THandlers>(
+  baseUrl: string,
+  object: VirtualObjectDefinition<string, THandlers>,
+  key: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  serde: Serde<any>,
+) {
+  const ingress = getRestateClientForUrl(baseUrl);
+  const rawClient = ingress.objectClient(object, key);
+  return wrapIngressClient(rawClient, serde);
+}
+
+/**
  * Creates a typed object send client for use outside of Restate contexts
  * Automatically applies SuperJSON serde for proper type serialization
  * @param object The virtual object definition for send operations
@@ -99,6 +162,25 @@ export function createObjectSendClient<THandlers>(
   serde: Serde<any>,
 ) {
   const ingress = getRestateClient();
+  const rawClient = ingress.objectSendClient(object, key);
+  return wrapIngressSendClient(rawClient, serde);
+}
+
+/**
+ * Creates a typed object send client with custom base URL
+ * @param baseUrl The Restate server URL
+ * @param object The virtual object definition
+ * @param key The unique identifier for the object instance
+ * @param serde The serialization/deserialization configuration
+ */
+export function createStandaloneObjectSendClient<THandlers>(
+  baseUrl: string,
+  object: VirtualObjectDefinition<string, THandlers>,
+  key: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  serde: Serde<any>,
+) {
+  const ingress = getRestateClientForUrl(baseUrl);
   const rawClient = ingress.objectSendClient(object, key);
   return wrapIngressSendClient(rawClient, serde);
 }
@@ -122,6 +204,25 @@ export function createWorkflowClient<THandlers>(
 }
 
 /**
+ * Creates a typed workflow client with custom base URL
+ * @param baseUrl The Restate server URL
+ * @param workflow The workflow definition
+ * @param key The unique identifier for the workflow instance
+ * @param serde The serialization/deserialization configuration
+ */
+export function createStandaloneWorkflowClient<THandlers>(
+  baseUrl: string,
+  workflow: WorkflowDefinition<string, THandlers>,
+  key: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  serde: Serde<any>,
+) {
+  const ingress = getRestateClientForUrl(baseUrl);
+  const rawClient = ingress.workflowClient(workflow, key);
+  return wrapIngressWorkflowClient(rawClient, serde);
+}
+
+/**
  * Creates a typed workflow send client for use outside of Restate contexts
  * Automatically applies SuperJSON serde for proper type serialization
  * Note: Uses the regular workflow client which supports send operations
@@ -137,6 +238,25 @@ export function createWorkflowSendClient<THandlers>(
 ) {
   // The typed workflow client supports both regular and send operations
   const ingress = getRestateClient();
+  const rawClient = ingress.workflowClient(workflow, key);
+  return wrapIngressWorkflowClient(rawClient, serde);
+}
+
+/**
+ * Creates a typed workflow send client with custom base URL
+ * @param baseUrl The Restate server URL
+ * @param workflow The workflow definition
+ * @param key The unique identifier for the workflow instance
+ * @param serde The serialization/deserialization configuration
+ */
+export function createStandaloneWorkflowSendClient<THandlers>(
+  baseUrl: string,
+  workflow: WorkflowDefinition<string, THandlers>,
+  key: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  serde: Serde<any>,
+) {
+  const ingress = getRestateClientForUrl(baseUrl);
   const rawClient = ingress.workflowClient(workflow, key);
   return wrapIngressWorkflowClient(rawClient, serde);
 }
