@@ -19,24 +19,28 @@ bun add restate-for-dummies
 ## Quick Start
 
 ```typescript
-import { createRestateFactory, type Serde } from "restate-for-dummies/primitives";
+import { RestateClient } from "restate-for-dummies";
+import { SuperJsonSerde } from "./my-serde"; // Your custom serde
 
-// 1. Implement your serde
-const jsonSerde: Serde<any> = {
-  contentType: "application/json",
-  serialize: (value) => new TextEncoder().encode(JSON.stringify(value)),
-  deserialize: (bytes) => JSON.parse(new TextDecoder().decode(bytes)),
-};
+// 1. Create a Restate client instance
+const restate = new RestateClient({
+  SerdeClass: SuperJsonSerde,
+  restateUrl: "http://localhost:8080" // optional, defaults to RESTATE_URL env var
+});
 
-// 2. Create the factory
-const restate = createRestateFactory({ serde: jsonSerde });
-
-// 3. Define your service
-const greetingService = restate.service("GreetingService", {
+// 2. Define your service
+const greetingService = restate.createService("GreetingService")({
   greet: async ({ ctx }, name: string) => {
     return `Hello, ${name}!`;
   },
 });
+
+// 3. Use client methods (with automatic serde)
+const workflowClient = restate.workflowClient(myWorkflow, "workflow-key");
+await workflowClient.workflowSubmit({ data: "test" });
+
+const serviceClient = restate.serviceClient(myService);
+await serviceClient.myMethod();
 
 // 4. Export for registration
 export { greetingService };

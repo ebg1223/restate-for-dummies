@@ -1,5 +1,5 @@
-// Main factory function
-export { getRestate, type RestateFactoryReturn } from "./factory";
+// Main API - RestateClient class
+export { RestateClient } from "./factory";
 
 // Individual typed constructors for direct use
 export { typedService, createRestateService } from "./typed-service";
