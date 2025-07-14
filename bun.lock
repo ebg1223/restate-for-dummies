@@ -4,8 +4,8 @@
     "": {
       "name": "restate-for-dummies",
       "dependencies": {
-        "@restatedev/restate-sdk": "1.6.1",
-        "@restatedev/restate-sdk-clients": "1.6.1",
+        "@restatedev/restate-sdk": "1.7.3",
+        "@restatedev/restate-sdk-clients": "1.7.3",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -16,9 +16,9 @@
     },
   },
   "packages": {
-    "@restatedev/restate-sdk": ["@restatedev/restate-sdk@1.6.1", "", { "dependencies": { "@restatedev/restate-sdk-core": "^1.6.1" } }, "sha512-UePOQmEXOOrGJaCnDF6IGT9pafocY354ovPpsaT3048o3FuHGURYIQ2R9eoj9tJPbF8W8RuKwHFyFIuDKVhyXA=="],
+    "@restatedev/restate-sdk": ["@restatedev/restate-sdk@1.7.3", "", { "dependencies": { "@restatedev/restate-sdk-core": "^1.7.3" } }, "sha512-qRWdu6MsJ+OcvmQog1g9b/kyhUZC7GSNKkMCJsQ57naTN4kbO7/wEjVBlIr5uCgrK+LmwlBqqSoYDnVsckznzA=="],
 
-    "@restatedev/restate-sdk-clients": ["@restatedev/restate-sdk-clients@1.6.1", "", { "dependencies": { "@restatedev/restate-sdk-core": "^1.6.1" } }, "sha512-yV3yprBpMm2GTcDwW1jWRg41vKWwHMgCd1ezzTEraTWv/A4W/3F7AXm4zen6ea657bmdIpf9a6+bf9tLbMCS7w=="],
+    "@restatedev/restate-sdk-clients": ["@restatedev/restate-sdk-clients@1.7.3", "", { "dependencies": { "@restatedev/restate-sdk-core": "^1.7.3" } }, "sha512-wLyNln0XnJyLw7xbac2Scbc/boJN1FbtQomTxj+KImdSbJTtBDIB1FULGOsG2JQFQ0OtuAzaGeRVBkXGNJJQ+A=="],
 
     "@restatedev/restate-sdk-core": ["@restatedev/restate-sdk-core@1.7.3", "", {}, "sha512-Q5LQwXZAoyQzrKVXIrUCGZndHa6nxsdLIsh8hJwSCV4yMLCe6aYRa8sOA0DU+0VhyzIF0ySewxmy3GqEZb9RFw=="],
 
