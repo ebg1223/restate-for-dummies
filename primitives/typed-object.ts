@@ -27,7 +27,7 @@ export type HandlerContext<TState> = {
   clearState: TypedClear<TState>;
   ctx: restate.ObjectContext;
   getState: TypedGet<TState>;
-  runStep: TypedRun<TState>;
+  runStep: TypedRun;
   setState: TypedSet<TState>;
 } & BaseClientMethods;
 
@@ -42,7 +42,7 @@ type TransformHandlers<TState, THandlers> = {
 // The working solution: state type is provided once, handlers are defined inline
 export function typedObject<TState>(
   name: string,
-  SerdeClass: new () => restate.Serde<TState>,
+  SerdeClass: new <T>() => restate.Serde<T>,
 ) {
   return <
     THandlers extends {
@@ -58,13 +58,13 @@ export function typedObject<TState>(
   ): VirtualObjectDefinition<string, TransformHandlers<TState, THandlers>> => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transformedHandlers: any = {};
-    const serde = new SerdeClass();
+    const serde = new SerdeClass<any>();
 
     for (const [key, handlerFn] of Object.entries(handlers)) {
       transformedHandlers[key] = restate.handlers.object.exclusive(
         {
-          input: new SerdeClass(),
-          output: new SerdeClass(),
+          input: new SerdeClass<any>(),
+          output: new SerdeClass<any>(),
         },
         async (
           ctx: restate.ObjectContext,
@@ -72,22 +72,25 @@ export function typedObject<TState>(
           ...args: any[]
         ) => {
           const getState: TypedGet<TState> = (key, opts) =>
-            rawGet(ctx as GetContext, key as string, new SerdeClass(), opts);
+            rawGet(ctx as GetContext, key as string, new SerdeClass<TState[typeof key]>());
 
           const setState: TypedSet<TState> = (key, value, opts) =>
-            rawSet(ctx as SetContext, key as string, value, opts);
+            rawSet(ctx as SetContext, key as string, value, new SerdeClass<TState[typeof key]>());
 
           const clearState: TypedClear<TState> = (key) =>
             ctx.clear(key as string);
 
-          const runStep: TypedRun<TState> = (name, action, opts) =>
-            rawRun(ctx, name, action, new SerdeClass(), opts);
+          const runStep = <T>(
+            name: Parameters<typeof rawRun<T>>[1],
+            action: Parameters<typeof rawRun<T>>[2],
+            opts?: Parameters<typeof rawRun<T>>[4],
+          ) => rawRun<T>(ctx, name, action, new SerdeClass<T>(), opts);
 
           const context: HandlerContext<TState> = {
             clearState,
             ctx,
             getState,
-            runStep,
+            runStep: runStep as TypedRun,
             setState,
             service: (service) => createServiceClient(ctx, service, serde),
             serviceSend: (service) =>

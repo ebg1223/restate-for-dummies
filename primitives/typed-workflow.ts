@@ -62,7 +62,7 @@ type CombineHandlers<TRunHandler, TSharedHandlers> = {
 // The main factory function: state type is provided once, handlers are defined inline with a single object
 export function createRestateWorkflow<TState>(
   name: string,
-  SerdeClass: new () => restate.Serde<TState>,
+  SerdeClass: new <T>() => restate.Serde<T>,
 ) {
   return <
     THandlers extends {
@@ -89,14 +89,14 @@ export function createRestateWorkflow<TState>(
       TransformSharedHandlers<TState, Omit<THandlers, "run">>
     >
   > => {
-    const serde = new SerdeClass();
+    const serde = new SerdeClass<any>();
     const { run: runHandler, ...sharedHandlers } = inputHandlers;
 
     // Transform the run handler
     const transformedRunHandler = restate.handlers.workflow.workflow(
       {
-        input: new SerdeClass(),
-        output: new SerdeClass(),
+        input: new SerdeClass<any>(),
+        output: new SerdeClass<any>(),
       },
       async (
         ctx: restate.WorkflowContext,
@@ -104,72 +104,36 @@ export function createRestateWorkflow<TState>(
         ...args: any[]
       ) => {
         const getState: TypedGet<TState> = (key, opts) =>
-          rawGet(ctx as GetContext, key as string, opts);
+          rawGet(ctx as GetContext, key as string, new SerdeClass<TState[typeof key]>());
         const setState: TypedSet<TState> = (key, value, opts) =>
-          rawSet(ctx, key as string, value, opts);
+          rawSet(ctx, key as string, value, new SerdeClass<TState[typeof key]>());
 
         const clearState: TypedClear<TState> = (key) =>
           ctx.clear(key as string);
 
-        const runStep: TypedRun = (name, action, opts) =>
-          rawRun(ctx, name, action, opts);
+        const runStep = <T>(
+          name: Parameters<typeof rawRun<T>>[1],
+          action: Parameters<typeof rawRun<T>>[2],
+          opts?: Parameters<typeof rawRun<T>>[4],
+        ) => rawRun<T>(ctx, name, action, new SerdeClass<T>(), opts);
 
         const context: WorkflowHandlerContext<TState> = {
           clearState,
           ctx,
           getState,
           setState,
-          runStep,
-          service: (service) => {
-            console.log(
-              "[typed-workflow] Creating service client, serde:",
-              serde,
-            );
-            return createServiceClient(ctx, service, serde);
-          },
-          serviceSend: (service) => {
-            console.log(
-              "[typed-workflow] Creating service send client, serde:",
-              serde,
-            );
-            return createServiceSendClient(ctx, service, serde);
-          },
-          object: (object, key) => {
-            console.log(
-              "[typed-workflow] Creating object client, key:",
-              key,
-              "serde:",
-              serde,
-            );
-            return createObjectClient(ctx, object, key, serde);
-          },
-          objectSend: (object, key) => {
-            console.log(
-              "[typed-workflow] Creating object send client, key:",
-              key,
-              "serde:",
-              serde,
-            );
-            return createObjectSendClient(ctx, object, key, serde);
-          },
-          workflow: (workflow, key) => {
-            console.log(
-              "[typed-workflow] Creating workflow client, key:",
-              key,
-              "serde:",
-              serde,
-            );
-            return createWorkflowClient(ctx, workflow, key, serde);
-          },
-          workflowSend: (workflow, key) => {
-            console.log(
-              "[typed-workflow] Creating workflow send client, key:",
-              key,
-              "serde:",
-              serde,
-            );
-            return createWorkflowSendClient(ctx, workflow, key, serde);
-          },
+          runStep: runStep as TypedRun,
+          service: (service) => createServiceClient(ctx, service, serde),
+          serviceSend: (service) =>
+            createServiceSendClient(ctx, service, serde),
+          object: (object, key) =>
+            createObjectClient(ctx, object, key, serde),
+          objectSend: (object, key) =>
+            createObjectSendClient(ctx, object, key, serde),
+          workflow: (workflow, key) =>
+            createWorkflowClient(ctx, workflow, key, serde),
+          workflowSend: (workflow, key) =>
+            createWorkflowSendClient(ctx, workflow, key, serde),
         };
         return runHandler(context, ...args);
       },
@@ -182,8 +146,8 @@ export function createRestateWorkflow<TState>(
     for (const [key, handlerFn] of Object.entries(sharedHandlers)) {
       transformedSharedHandlers[key] = restate.handlers.workflow.shared(
         {
-          input: new SerdeClass(),
-          output: new SerdeClass(),
+          input: new SerdeClass<any>(),
+          output: new SerdeClass<any>(),
         },
         async (
           ctx: restate.WorkflowSharedContext,
@@ -191,65 +155,29 @@ export function createRestateWorkflow<TState>(
           ...args: any[]
         ) => {
           const getState: TypedGet<TState> = (key, opts) =>
-            rawGet(ctx as GetContext, key as string, opts);
+            rawGet(ctx as GetContext, key as string, new SerdeClass<TState[typeof key]>());
 
-          const runStep: TypedRun = (name, action, opts) =>
-            rawRun(ctx, name, action, opts);
+          const runStep = <T>(
+            name: Parameters<typeof rawRun<T>>[1],
+            action: Parameters<typeof rawRun<T>>[2],
+            opts?: Parameters<typeof rawRun<T>>[4],
+          ) => rawRun<T>(ctx, name, action, new SerdeClass<T>(), opts);
 
           const context: WorkflowSharedHandlerContext<TState> = {
             ctx,
             getState,
-            runStep,
-            service: (service) => {
-              console.log(
-                "[typed-workflow-shared] Creating service client, serde:",
-                serde,
-              );
-              return createServiceClient(ctx, service, serde);
-            },
-            serviceSend: (service) => {
-              console.log(
-                "[typed-workflow-shared] Creating service send client, serde:",
-                serde,
-              );
-              return createServiceSendClient(ctx, service, serde);
-            },
-            object: (object, key) => {
-              console.log(
-                "[typed-workflow-shared] Creating object client, key:",
-                key,
-                "serde:",
-                serde,
-              );
-              return createObjectClient(ctx, object, key, serde);
-            },
-            objectSend: (object, key) => {
-              console.log(
-                "[typed-workflow-shared] Creating object send client, key:",
-                key,
-                "serde:",
-                serde,
-              );
-              return createObjectSendClient(ctx, object, key, serde);
-            },
-            workflow: (workflow, key) => {
-              console.log(
-                "[typed-workflow-shared] Creating workflow client, key:",
-                key,
-                "serde:",
-                serde,
-              );
-              return createWorkflowClient(ctx, workflow, key, serde);
-            },
-            workflowSend: (workflow, key) => {
-              console.log(
-                "[typed-workflow-shared] Creating workflow send client, key:",
-                key,
-                "serde:",
-                serde,
-              );
-              return createWorkflowSendClient(ctx, workflow, key, serde);
-            },
+            runStep: runStep as TypedRun,
+            service: (service) => createServiceClient(ctx, service, serde),
+            serviceSend: (service) =>
+              createServiceSendClient(ctx, service, serde),
+            object: (object, key) =>
+              createObjectClient(ctx, object, key, serde),
+            objectSend: (object, key) =>
+              createObjectSendClient(ctx, object, key, serde),
+            workflow: (workflow, key) =>
+              createWorkflowClient(ctx, workflow, key, serde),
+            workflowSend: (workflow, key) =>
+              createWorkflowSendClient(ctx, workflow, key, serde),
           };
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (handlerFn as any)(context, ...args);

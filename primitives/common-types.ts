@@ -9,7 +9,7 @@ import * as restate from "@restatedev/restate-sdk";
 import type { BaseOpts, RunFunc, RunOpts } from "./utils";
 
 // Type for the run function - shared across all primitives
-export type TypedRun<T> = <T>(
+export type TypedRun = <T>(
   name: string,
   action: RunFunc<T>,
   opts?: RunOpts<T>,

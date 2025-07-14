@@ -22,7 +22,7 @@ import { run as rawRun } from "./utils";
 // Handler context that can be destructured
 export type ServiceHandlerContext<T> = {
   ctx: restate.Context;
-  runStep: TypedRun<T>;
+  runStep: TypedRun;
 } & BaseClientMethods;
 
 // Transform handler types to match Restate's expected format

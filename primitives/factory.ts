@@ -68,9 +68,8 @@ const obj = factest.createObject<{
 });
 
 const serv = factest.createService("hi")({
-  hi: async ({ ctx }) => {
+  hi: async ({ ctx, object, runStep, service }) => {
     console.log("hi");
-    return "HIHI";
   },
 });
 

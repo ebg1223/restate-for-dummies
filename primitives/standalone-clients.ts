@@ -12,7 +12,7 @@ import {
   wrapIngressSendClient,
   wrapIngressWorkflowClient,
 } from "./client-proxy";
-import { superjsonserde } from "./serde";
+
 
 let ingress: restate.Ingress | undefined;
 
