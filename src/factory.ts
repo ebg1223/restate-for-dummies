@@ -4,6 +4,11 @@ import type {
   VirtualObjectDefinition,
   WorkflowDefinition,
 } from "@restatedev/restate-sdk";
+import type {
+  IngressClient,
+  IngressSendClient,
+  IngressWorkflowClient,
+} from "@restatedev/restate-sdk-clients";
 import { typedObject } from "./typed-object";
 import { typedService } from "./typed-service";
 import { typedWorkflow } from "./typed-workflow";
@@ -58,3 +63,5 @@ export function getRestate({
     standaloneClients,
   } as const;
 }
+
+export type RestateFactoryReturn = ReturnType<typeof getRestate>;

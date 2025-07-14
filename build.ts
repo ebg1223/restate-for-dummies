@@ -18,10 +18,7 @@ const result = await Bun.build({
   target: "node",
   format: "esm",
   sourcemap: "external",
-  external: [
-    "@restatedev/restate-sdk",
-    "@restatedev/restate-sdk-clients"
-  ],
+  external: ["@restatedev/restate-sdk", "@restatedev/restate-sdk-clients"],
   splitting: true,
   minify: false, // Don't minify library code
 });
@@ -48,8 +45,8 @@ const distPkg = {
   exports: {
     ".": {
       types: "./index.d.ts",
-      import: "./index.js"
-    }
+      import: "./index.js",
+    },
   },
   dependencies: pkg.dependencies,
   peerDependencies: pkg.peerDependencies,
@@ -58,7 +55,7 @@ const distPkg = {
   license: pkg.license,
   repository: pkg.repository,
   bugs: pkg.bugs,
-  homepage: pkg.homepage
+  homepage: pkg.homepage,
 };
 
 await Bun.write("dist/package.json", JSON.stringify(distPkg, null, 2));

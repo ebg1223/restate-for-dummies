@@ -1,5 +1,5 @@
 // Main factory function
-export { getRestate } from "./factory";
+export { getRestate, type RestateFactoryReturn } from "./factory";
 
 // Individual typed constructors for direct use
 export { typedService, createRestateService } from "./typed-service";
@@ -12,9 +12,7 @@ export type {
   TransformHandlers as TransformServiceHandlers,
 } from "./typed-service";
 
-export type {
-  HandlerContext as ObjectHandlerContext,
-} from "./typed-object";
+export type { HandlerContext as ObjectHandlerContext } from "./typed-object";
 
 export type {
   WorkflowHandlerContext,
@@ -27,7 +25,23 @@ export type {
   TypedSet,
   TypedClear,
   BaseClientMethods,
+  TransformObjectHandler,
+  TransformServiceHandler,
+  TransformWorkflowHandler,
+  TransformWorkflowSharedHandler,
+  BaseHandler,
+  HandlerCollection,
 } from "./common-types";
+
+// Utility type exports
+export type {
+  SerdeOption,
+  BaseOpts,
+  SetContext,
+  GetContext,
+  RunFunc,
+  RunOpts,
+} from "./utils";
 
 // Standalone client utilities
 export {
@@ -40,6 +54,25 @@ export {
   getRestateClient,
 } from "./standalone-clients";
 
+// Export client wrapper types and functions
+export {
+  wrapClient,
+  wrapSendClient,
+  wrapIngressClient,
+  wrapIngressSendClient,
+  wrapIngressWorkflowClient,
+} from "./client-proxy";
+
+// Export client wrapper creation functions
+export {
+  createServiceClient as createWrappedServiceClient,
+  createServiceSendClient as createWrappedServiceSendClient,
+  createObjectClient as createWrappedObjectClient,
+  createObjectSendClient as createWrappedObjectSendClient,
+  createWorkflowClient as createWrappedWorkflowClient,
+  createWorkflowSendClient as createWrappedWorkflowSendClient,
+} from "./client-wrapper";
+
 // Re-export types from Restate SDK for convenience
 export type {
   Serde,
@@ -51,3 +84,8 @@ export type {
   WorkflowContext,
   WorkflowSharedContext,
 } from "@restatedev/restate-sdk";
+
+export * as restate from "@restatedev/restate-sdk";
+export * as restateClients from "@restatedev/restate-sdk-clients";
+export * as restateFetch from "@restatedev/restate-sdk/fetch";
+export * as restateLambda from "@restatedev/restate-sdk/lambda";
