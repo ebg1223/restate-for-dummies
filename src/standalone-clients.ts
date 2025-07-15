@@ -13,16 +13,6 @@ import {
   wrapIngressSendClient,
   wrapIngressWorkflowClient,
 } from "./client-proxy";
-
-
-let ingress: restate.Ingress | undefined;
-
-export const getRestateClient = (url: string) => {
-  ingress = restate.connect({
-    url,
-  });
-  return ingress;
-};
 /**
  * Standalone typed client functions for use outside of Restate contexts.
  * These functions create properly typed clients with automatic SuperJSON serde handling.
@@ -47,7 +37,7 @@ export function createServiceClient<THandlers>(
   serde: Serde<THandlers>,
   url: string,
 ): restate.IngressClient<THandlers> {
-  const ingress = getRestateClient(url);
+  const ingress = restate.connect({ url });
   const rawClient = ingress.serviceClient(service);
   return wrapIngressClient(rawClient, serde) as restate.IngressClient<THandlers>;
 }
@@ -63,7 +53,7 @@ export function createServiceSendClient<THandlers>(
   serde: Serde<THandlers>,
   url: string,
 ): restate.IngressSendClient<THandlers> {
-  const ingress = getRestateClient(url);
+  const ingress = restate.connect({ url });
   const rawClient = ingress.serviceSendClient(service);
   return wrapIngressSendClient(rawClient, serde) as restate.IngressSendClient<THandlers>;
 }
@@ -81,7 +71,7 @@ export function createObjectClient<THandlers>(
   serde: Serde<THandlers>,
   url: string,
 ): restate.IngressClient<THandlers> {
-  const ingress = getRestateClient(url);
+  const ingress = restate.connect({ url });
   const rawClient = ingress.objectClient(object, key);
   return wrapIngressClient(rawClient, serde) as restate.IngressClient<THandlers>;
 }
@@ -99,7 +89,7 @@ export function createObjectSendClient<THandlers>(
   serde: Serde<THandlers>,
   url: string,
 ): restate.IngressSendClient<THandlers> {
-  const ingress = getRestateClient(url);
+  const ingress = restate.connect({ url });
   const rawClient = ingress.objectSendClient(object, key);
   return wrapIngressSendClient(rawClient, serde) as restate.IngressSendClient<THandlers>;
 }
@@ -117,7 +107,7 @@ export function createWorkflowClient<THandlers>(
   serde: Serde<THandlers>,
   url: string,
 ): IngressWorkflowClient<THandlers> {
-  const ingress = getRestateClient(url);
+  const ingress = restate.connect({ url });
   const rawClient = ingress.workflowClient(workflow, key);
   return wrapIngressWorkflowClient(rawClient, serde) as IngressWorkflowClient<THandlers>;
 }
@@ -137,7 +127,7 @@ export function createWorkflowSendClient<THandlers>(
   url: string,
 ): IngressWorkflowClient<THandlers> {
   // The typed workflow client supports both regular and send operations
-  const ingress = getRestateClient(url);
+  const ingress = restate.connect({ url });
   const rawClient = ingress.workflowClient(workflow, key);
   return wrapIngressWorkflowClient(rawClient, serde) as IngressWorkflowClient<THandlers>;
 }

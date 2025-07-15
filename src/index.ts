@@ -51,7 +51,6 @@ export {
   createObjectSendClient,
   createWorkflowClient,
   createWorkflowSendClient,
-  getRestateClient,
 } from "./standalone-clients";
 
 // Export client wrapper types and functions
