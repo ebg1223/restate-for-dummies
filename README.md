@@ -20,11 +20,11 @@ bun add restate-for-dummies
 
 ```typescript
 import { RestateClient } from "restate-for-dummies";
-import { SuperJsonSerde } from "./my-serde"; // Your custom serde
+import { SuperJsonSerde } from "./my-serde"; // Your custom serde class
 
 // 1. Create a Restate client instance
 const restate = new RestateClient({
-  SerdeClass: SuperJsonSerde,
+  SerdeClass: SuperJsonSerde, // Pass the class constructor, not an instance
   restateUrl: "http://localhost:8080" // optional, defaults to RESTATE_URL env var
 });
 
@@ -48,17 +48,18 @@ export { greetingService };
 
 ## Core Concepts
 
-### The Factory Pattern
+### The RestateClient Pattern
 
-The factory pattern is the centerpiece of this library. Instead of manually passing serde configurations to each primitive, you configure it once:
+The `RestateClient` class is the centerpiece of this library. Instead of manually passing serde configurations to each primitive, you configure it once:
 
 ```typescript
-const restate = createRestateFactory({
-  serde: mySerde,
+const restate = new RestateClient({
+  SerdeClass: MySerdeClass, // Pass the class constructor
+  restateUrl: "http://localhost:8080" // optional
 });
 ```
 
-All primitives created from this factory will automatically use your configured serde.
+All primitives created from this client will automatically use your configured serde.
 
 ### Serde Interface
 
@@ -74,11 +75,11 @@ interface Serde<T> {
 
 ### Type Safety
 
-The library preserves full type safety throughout. For objects with state, use the builder API (`objectWithState`) for the best type inference experience. See [TYPE_INFERENCE_GUIDE.md](./TYPE_INFERENCE_GUIDE.md) for details.
+The library preserves full type safety throughout:
 
 ```typescript
 // Define a service
-const userService = restate.service("UserService", {
+const userService = restate.createService("UserService")({
   getUser: async ({ ctx }, id: string): Promise<User> => {
     // Return type is enforced
     return { id, name: "John" };
@@ -86,7 +87,7 @@ const userService = restate.service("UserService", {
 });
 
 // Use in another service - fully typed!
-const orderService = restate.service("OrderService", {
+const orderService = restate.createService("OrderService")({
   createOrder: async ({ service }, userId: string) => {
     // user is typed as User
     const user = await service(userService).getUser(userId);
@@ -97,16 +98,19 @@ const orderService = restate.service("OrderService", {
 
 ## API Reference
 
-### Factory Creation
+### Client Creation
 
 ```typescript
-const restate = createRestateFactory(config: FactoryConfig);
+const restate = new RestateClient({
+  SerdeClass?: new () => Serde<any>, // Optional, defaults to JsonSerde
+  restateUrl?: string // Optional, defaults to RESTATE_URL env var or "http://localhost:8080"
+});
 ```
 
 ### Service Definition
 
 ```typescript
-const service = restate.service(name: string, handlers: {
+const service = restate.createService(name: string)(handlers: {
   [methodName: string]: (context, ...args) => Promise<result>
 });
 ```
@@ -119,30 +123,29 @@ Context provides:
 - `object`: Create object clients
 - `objectSend`: Create delayed object clients
 - `workflow`: Create workflow clients
+- `workflowSend`: Create delayed workflow clients
 
 ### Object Definition
 
 ```typescript
-// Using the builder API (recommended for better type inference)
-const object = restate.objectWithState<State>(name: string).handlers({
+// Define an object with typed state
+const object = restate.createObject<State>(name: string)({
   [methodName: string]: (context, ...args) => Promise<result>
 });
-
-// Or with explicit type parameters
-const object = restate.object<State, Handlers>(name: string, handlers);
 ```
 
 Context provides:
-- `ctx`: Raw Restate context
+- `ctx`: Raw Restate context (ObjectContext)
 - `getState`: Type-safe state getter
 - `setState`: Type-safe state setter
 - `clearState`: Clear state keys
-- Plus all client creation methods
+- `runStep`: Type-safe step execution
+- Plus all client creation methods (service, serviceSend, object, objectSend, workflow, workflowSend)
 
 ### Workflow Definition
 
 ```typescript
-const workflow = restate.workflow(name: string, {
+const workflow = restate.createWorkflow<State>(name: string)({
   run: async (context, ...args) => { /* main workflow */ },
   // Shared handlers are defined at the top level alongside run
   sharedMethod1: async (context, ...args) => { /* shared handler 1 */ },
@@ -150,23 +153,42 @@ const workflow = restate.workflow(name: string, {
 });
 ```
 
-### Standalone Clients
+Context for `run` handler provides:
+- `ctx`: Raw Restate context (WorkflowContext)
+- `getState`: Type-safe state getter
+- `setState`: Type-safe state setter
+- `clearState`: Clear state keys
+- `runStep`: Type-safe step execution
+- Plus all client creation methods
 
-For use outside Restate contexts:
+Context for shared handlers provides:
+- `ctx`: Raw Restate context (WorkflowSharedContext)
+- `getState`: Type-safe state getter (read-only access)
+- `runStep`: Type-safe step execution
+- Plus all client creation methods
+
+### Client Methods
+
+For use outside Restate contexts, use the client methods directly on the RestateClient instance:
 
 ```typescript
-const clients = restate.standaloneClients("http://localhost:9080");
-
-const userClient = clients.service(userService);
+// Service client
+const userClient = restate.serviceClient(userService);
 const user = await userClient.getUser("123");
 
-const counterClient = clients.object(counter, "main");
+// Object client  
+const counterClient = restate.objectClient(counter, "main");
 const count = await counterClient.increment();
 
-// For workflows, use submit/attach pattern
-const workflowClient = clients.workflow(myWorkflow, "instance-id");
+// Workflow client - use submit/attach pattern
+const workflowClient = restate.workflowClient(myWorkflow, "instance-id");
 await workflowClient.workflowSubmit();
 const result = await workflowClient.workflowAttach();
+
+// Send clients for delayed execution
+const serviceSend = restate.serviceSendClient(userService);
+const objectSend = restate.objectSendClient(counter, "main");
+const workflowSend = restate.workflowSendClient(myWorkflow, "instance-id");
 ```
 
 ## Examples
@@ -188,12 +210,12 @@ class SuperJSONSerde implements Serde<any> {
   }
 }
 
-const restate = createRestateFactory({
-  serde: new SuperJSONSerde(),
+const restate = new RestateClient({
+  SerdeClass: SuperJSONSerde,
 });
 
 // Now you can use Date, Set, Map, BigInt, etc.
-const service = restate.service("DateService", {
+const service = restate.createService("DateService")({
   getNextWeek: async ({ ctx }) => {
     return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   },
@@ -203,11 +225,11 @@ const service = restate.service("DateService", {
 ### Cross-Service Communication
 
 ```typescript
-const userService = restate.service("UserService", {
+const userService = restate.createService("UserService")({
   getUser: async ({ ctx }, id: string) => ({ id, name: "John" }),
 });
 
-const orderService = restate.service("OrderService", {
+const orderService = restate.createService("OrderService")({
   createOrder: async ({ service }, userId: string) => {
     // Type-safe cross-service call
     const user = await service(userService).getUser(userId);
@@ -224,7 +246,7 @@ interface CounterState {
   lastUpdated: Date;
 }
 
-const counter = restate.objectWithState<CounterState>("Counter").handlers({
+const counter = restate.createObject<CounterState>("Counter")({
   increment: async ({ getState, setState }) => {
     const count = (await getState("count")) ?? 0;
     await setState("count", count + 1);
@@ -238,12 +260,12 @@ const counter = restate.objectWithState<CounterState>("Counter").handlers({
 
 If you're currently using the Restate SDK directly:
 
-1. Implement a Serde that matches your current serialization
-2. Create a factory with your serde
-3. Replace `restate.service()` with `factory.service()`
-4. Replace `restate.object()` with `factory.objectWithState().handlers()` or `factory.object()` with explicit types
-5. Replace `restate.workflow()` with `factory.workflow()`
-6. Update client creation to use the factory methods
+1. Implement a Serde class that matches your current serialization
+2. Create a RestateClient instance with your SerdeClass
+3. Replace `restate.service()` with `client.createService(name)(handlers)`
+4. Replace `restate.object()` with `client.createObject<State>(name)(handlers)`
+5. Replace `restate.workflow()` with `client.createWorkflow<State>(name)(handlers)`
+6. Update client creation to use the client methods
 
 ## Advanced Usage
 
@@ -272,17 +294,47 @@ class CompressedJSONSerde implements Serde<any> {
 ### Type-Safe Handler Extraction
 
 ```typescript
-import type { ClientType } from "restate-for-dummies/primitives";
-
-const myService = restate.service("MyService", {
+const myService = restate.createService("MyService")({
   method1: async ({ ctx }, arg: string) => arg.length,
   method2: async ({ ctx }, arg: number) => arg * 2,
 });
 
-// Extract client type
-type MyServiceClient = ClientType<typeof myService>;
-// MyServiceClient has methods: method1(arg: string): Promise<number>, etc.
+// The service definition is already properly typed
+// When used with serviceClient(), you get full type safety
 ```
+
+## Alternative API - Standalone Functions
+
+In addition to the `RestateClient` class, the library also exports standalone typed functions that can be used directly:
+
+```typescript
+import { typedService, typedObject, typedWorkflow } from "restate-for-dummies";
+import { SuperJsonSerde } from "./my-serde";
+
+// Create a service directly
+const myService = typedService("MyService", SuperJsonSerde)({
+  myMethod: async ({ ctx }, arg: string) => {
+    return `Hello ${arg}`;
+  },
+});
+
+// Create an object directly
+const myObject = typedObject<MyState>("MyObject", SuperJsonSerde)({
+  getCount: async ({ getState }) => {
+    return await getState("count") ?? 0;
+  },
+});
+
+// Create a workflow directly
+const myWorkflow = typedWorkflow<MyState>("MyWorkflow", SuperJsonSerde)({
+  run: async ({ ctx, setState }, input: string) => {
+    await setState("status", "running");
+    return `Completed: ${input}`;
+  },
+});
+```
+
+These functions are useful when you want to create individual components without instantiating a `RestateClient`.
 
 ## License
 
