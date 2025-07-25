@@ -4,6 +4,11 @@
     "repomix": {
       "type": "local",
       "command": ["bunx", "repomix", "--mcp"]
+    },
+
+    "gemini-cli": {
+      "type": "local",
+      "command": ["npx", "-y", "gemini-mcp-tool"]
     }
   }
 }

@@ -20,29 +20,29 @@ import {
 import { run as rawRun } from "./utils";
 
 // Handler context that can be destructured
-export type ServiceHandlerContext<T> = {
+export type ServiceHandlerContext = {
   ctx: restate.Context;
   runStep: TypedRun;
 } & BaseClientMethods;
 
 // Transform handler types to match Restate's expected format
-export type TransformHandlers<THandlers, THandlerContext> = {
+type TransformHandlers<THandlers> = {
   [K in keyof THandlers]: TransformServiceHandler<
-    ServiceHandlerContext<THandlerContext>,
+    ServiceHandlerContext,
     THandlers[K]
   >;
 };
 
 // The working solution: use higher-order function pattern
-export function createRestateService<THandlerContext>(
+export function createRestateService(
   name: string,
   SerdeClass: new <T>() => restate.Serde<T>,
 ) {
-  const serde = new SerdeClass();
+  const serde = new SerdeClass<any>();
   return <
     THandlers extends {
       [key: string]: (
-        context: ServiceHandlerContext<THandlerContext>,
+        context: ServiceHandlerContext,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...args: any[]
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,10 +50,7 @@ export function createRestateService<THandlerContext>(
     },
   >(
     handlers: THandlers,
-  ): ServiceDefinition<
-    string,
-    TransformHandlers<THandlers, THandlerContext>
-  > => {
+  ): ServiceDefinition<string, TransformHandlers<THandlers>> => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transformedHandlers: any = {};
 
@@ -61,8 +58,8 @@ export function createRestateService<THandlerContext>(
       // Wrap each handler with SuperJsonSerde
       transformedHandlers[key] = restate.handlers.handler(
         {
-          input: new SerdeClass(),
-          output: new SerdeClass(),
+          input: new SerdeClass<any>(),
+          output: new SerdeClass<any>(),
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         async (ctx: restate.Context, ...args: any[]) => {
@@ -70,9 +67,9 @@ export function createRestateService<THandlerContext>(
             name: Parameters<typeof rawRun<T>>[1],
             action: Parameters<typeof rawRun<T>>[2],
             opts: Parameters<typeof rawRun<T>>[4],
-          ) => rawRun<T>(ctx, name, action, new SerdeClass(), opts);
+          ) => rawRun<T>(ctx, name, action, new SerdeClass<T>(), opts);
 
-          const context: ServiceHandlerContext<THandlerContext> = {
+          const context: ServiceHandlerContext = {
             ctx,
             runStep,
             service: (service) => createServiceClient(ctx, service, serde),
@@ -92,13 +89,12 @@ export function createRestateService<THandlerContext>(
       );
     }
 
-    return restate.service({
+    const service = restate.service({
       name,
       handlers: transformedHandlers,
-    }) as ServiceDefinition<
-      string,
-      TransformHandlers<THandlers, THandlerContext>
-    >;
+    });
+    
+    return service as ServiceDefinition<string, TransformHandlers<THandlers>>;
   };
 }
 

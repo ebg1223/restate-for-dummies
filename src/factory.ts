@@ -23,14 +23,14 @@ import {
 import * as restate from "@restatedev/restate-sdk-clients";
 
 export class RestateClient {
-  private SerdeClass: new () => Serde<any>;
+  private SerdeClass: new <T>() => Serde<T>;
   private url: string;
 
   constructor({
-    SerdeClass = restate.serde.JsonSerde<any> as new () => Serde<any>,
+    SerdeClass = restate.serde.JsonSerde as new <T>() => Serde<T>,
     restateUrl,
   }: {
-    SerdeClass?: new () => Serde<any>;
+    SerdeClass?: new <T>() => Serde<T>;
     restateUrl?: string;
   } = {}) {
     this.SerdeClass = SerdeClass;
@@ -42,27 +42,58 @@ export class RestateClient {
   createWorkflow = <T>(name: string) => typedWorkflow<T>(name, this.SerdeClass);
 
   // Direct client methods with proper generic types
-  serviceClient = <T>(service: ServiceDefinition<string, T>): IngressClient<T> => {
+  serviceClient = <T>(
+    service: ServiceDefinition<string, T>,
+  ): IngressClient<T> => {
     return createServiceClient<T>(service, new this.SerdeClass(), this.url);
-  }
+  };
 
-  serviceSendClient = <T>(service: ServiceDefinition<string, T>): IngressSendClient<T> => {
+  serviceSendClient = <T>(
+    service: ServiceDefinition<string, T>,
+  ): IngressSendClient<T> => {
     return createServiceSendClient<T>(service, new this.SerdeClass(), this.url);
-  }
+  };
 
-  objectClient = <T>(object: VirtualObjectDefinition<string, T>, key: string): IngressClient<T> => {
+  objectClient = <T>(
+    object: VirtualObjectDefinition<string, T>,
+    key: string,
+  ): IngressClient<T> => {
     return createObjectClient<T>(object, key, new this.SerdeClass(), this.url);
-  }
+  };
 
-  objectSendClient = <T>(object: VirtualObjectDefinition<string, T>, key: string): IngressSendClient<T> => {
-    return createObjectSendClient<T>(object, key, new this.SerdeClass(), this.url);
-  }
+  objectSendClient = <T>(
+    object: VirtualObjectDefinition<string, T>,
+    key: string,
+  ): IngressSendClient<T> => {
+    return createObjectSendClient<T>(
+      object,
+      key,
+      new this.SerdeClass(),
+      this.url,
+    );
+  };
 
-  workflowClient = <T>(workflow: WorkflowDefinition<string, T>, key: string): IngressWorkflowClient<T> => {
-    return createWorkflowClient<T>(workflow, key, new this.SerdeClass(), this.url);
-  }
+  workflowClient = <T>(
+    workflow: WorkflowDefinition<string, T>,
+    key: string,
+  ): IngressWorkflowClient<T> => {
+    return createWorkflowClient<T>(
+      workflow,
+      key,
+      new this.SerdeClass(),
+      this.url,
+    );
+  };
 
-  workflowSendClient = <T>(workflow: WorkflowDefinition<string, T>, key: string): IngressWorkflowClient<T> => {
-    return createWorkflowSendClient<T>(workflow, key, new this.SerdeClass(), this.url);
-  }
+  workflowSendClient = <T>(
+    workflow: WorkflowDefinition<string, T>,
+    key: string,
+  ): IngressWorkflowClient<T> => {
+    return createWorkflowSendClient<T>(
+      workflow,
+      key,
+      new this.SerdeClass(),
+      this.url,
+    );
+  };
 }

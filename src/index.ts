@@ -9,7 +9,6 @@ export { typedWorkflow, createRestateWorkflow } from "./typed-workflow";
 // Type exports for advanced users
 export type {
   ServiceHandlerContext,
-  TransformHandlers as TransformServiceHandlers,
 } from "./typed-service";
 
 export type { ObjectHandlerContext, HandlerContext } from "./typed-object";

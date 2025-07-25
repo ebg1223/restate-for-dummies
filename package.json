@@ -1,6 +1,6 @@
 {
   "name": "restate-for-dummies",
-  "version": "0.1.8",
+  "version": "0.1.16",
   "description": "Type-safe Restate SDK wrapper with simplified API",
   "type": "module",
   "main": "./dist/index.js",
@@ -51,5 +51,8 @@
   "bugs": {
     "url": "https://github.com/ebg1223/restate-for-dummies/issues"
   },
-  "homepage": "https://github.com/ebg1223/restate-for-dummies#readme"
+  "homepage": "https://github.com/ebg1223/restate-for-dummies#readme",
+  "trustedDependencies": [
+    "protobufjs"
+  ]
 }
