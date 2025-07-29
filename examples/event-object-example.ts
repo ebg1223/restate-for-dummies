@@ -1,4 +1,4 @@
-const { createEventHandler } = new RestateClient({});
+const { createEventHandler, objectClient } = new RestateClient({});
 
 // Example 1: Basic event sourcing
 type OrderEvents = {
@@ -73,9 +73,11 @@ export const userEventsObject = createEventHandler<
   },
   accountDeleted: async (context, data) => {
     context.setState("isActive", false);
+    return "LOL" as const;
   },
 });
 
+import { createObjectClient } from "../dist";
 // Example 3: Using the inferred types
 import {
   type InferEventType,
@@ -99,3 +101,10 @@ function processOrderEvent(event: OrderEvent) {
     // TypeScript ensures all cases are handled
   }
 }
+
+const res = await objectClient(userEventsObject, "1").accountDeleted({
+  deletedBy: "hi",
+});
+
+// Test that the return type is correctly inferred as "LOL"
+const typeTest: "LOL" = res;

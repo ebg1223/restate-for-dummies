@@ -2,6 +2,7 @@ import type { VirtualObjectDefinition } from "@restatedev/restate-sdk";
 import * as restate from "@restatedev/restate-sdk";
 import { typedObject } from "./typed-object";
 import type { ObjectHandlerContext } from "./typed-object";
+import type { TransformObjectHandler } from "./common-types";
 
 // Base event type that all events will extend
 type BaseEvent<TEventMap, K extends keyof TEventMap> = {
@@ -28,6 +29,17 @@ export type CombinedEventState<
   TAdditionalState = {},
 > = EventSourcedState<TEventMap> & Omit<TAdditionalState, "events">;
 
+// Transform handler types to match Restate's expected format
+type TransformEventHandlers<TState, THandlers> = {
+  [K in keyof THandlers]: TransformObjectHandler<
+    ObjectHandlerContext<TState> & {
+      eventUuid: string;
+      eventTimestamp: number;
+    },
+    THandlers[K]
+  >;
+};
+
 // Create an event-sourced object with automatic event storage
 export function createEventObject<
   TEventMap extends Record<string, any>,
@@ -39,18 +51,18 @@ export function createEventObject<
   // Infer the combined state type
   type State = EventSourcedState<TEventMap> & ValidatedAdditionalState;
 
-  // Handler type that accepts the event data for a specific event
-  type HandlerMap = {
-    [K in keyof TEventMap]: (
-      context: ObjectHandlerContext<State> & {
-        eventUuid: string;
-        eventTimestamp: number;
-      },
-      data: TEventMap[K],
-    ) => Promise<void>;
-  };
-
-  return (handlers: HandlerMap): VirtualObjectDefinition<string, any> => {
+  // We need to infer handler return types, so we accept any handler shape
+  return <
+    THandlers extends {
+      [K in keyof TEventMap]: (
+        context: ObjectHandlerContext<State> & {
+          eventUuid: string;
+          eventTimestamp: number;
+        },
+        data: TEventMap[K],
+      ) => Promise<any>;
+    }
+  >(handlers: THandlers): VirtualObjectDefinition<string, TransformEventHandlers<State, THandlers>> => {
     // Create wrapped handlers that automatically append events
     const wrappedHandlers = {} as any;
 
@@ -62,7 +74,10 @@ export function createEventObject<
         const eventUuid = context.ctx.rand.uuidv4();
         const eventTimestamp = context.ctx.date.now();
         // Execute the user's handler
-        await handler({ ...context, eventUuid, eventTimestamp }, data);
+        const result = await handler(
+          { ...context, eventUuid, eventTimestamp },
+          data,
+        );
 
         // Automatically append the event to the events list
         const eventsList = (await context.getState("events")) ?? [];
@@ -78,11 +93,14 @@ export function createEventObject<
           event,
         ];
         await (context.setState as any)("events", newEventsList);
+
+        // Return the handler's result
+        return result;
       };
     }
 
     // Use the existing typedObject function with wrapped handlers
-    return typedObject<State>(name, SerdeClass)(wrappedHandlers);
+    return typedObject<State>(name, SerdeClass)(wrappedHandlers) as VirtualObjectDefinition<string, TransformEventHandlers<State, THandlers>>;
   };
 }
 
