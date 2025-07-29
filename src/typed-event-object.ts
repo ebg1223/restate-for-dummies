@@ -2,7 +2,6 @@ import type { VirtualObjectDefinition } from "@restatedev/restate-sdk";
 import * as restate from "@restatedev/restate-sdk";
 import { typedObject } from "./typed-object";
 import type { ObjectHandlerContext } from "./typed-object";
-import type { TransformObjectHandler } from "./common-types";
 
 // Base event type that all events will extend
 type BaseEvent<TEventMap, K extends keyof TEventMap> = {
@@ -31,13 +30,12 @@ export type CombinedEventState<
 
 // Transform handler types to match Restate's expected format
 type TransformEventHandlers<TState, THandlers> = {
-  [K in keyof THandlers]: TransformObjectHandler<
-    ObjectHandlerContext<TState> & {
-      eventUuid: string;
-      eventTimestamp: number;
-    },
-    THandlers[K]
-  >;
+  [K in keyof THandlers]: THandlers[K] extends (
+    context: any,
+    data: infer D,
+  ) => Promise<infer R>
+    ? (ctx: restate.ObjectContext, data: D) => Promise<R>
+    : never;
 };
 
 // Create an event-sourced object with automatic event storage
@@ -61,8 +59,13 @@ export function createEventObject<
         },
         data: TEventMap[K],
       ) => Promise<any>;
-    }
-  >(handlers: THandlers): VirtualObjectDefinition<string, TransformEventHandlers<State, THandlers>> => {
+    },
+  >(
+    handlers: THandlers,
+  ): VirtualObjectDefinition<
+    string,
+    TransformEventHandlers<State, THandlers>
+  > => {
     // Create wrapped handlers that automatically append events
     const wrappedHandlers = {} as any;
 
@@ -100,7 +103,13 @@ export function createEventObject<
     }
 
     // Use the existing typedObject function with wrapped handlers
-    return typedObject<State>(name, SerdeClass)(wrappedHandlers) as VirtualObjectDefinition<string, TransformEventHandlers<State, THandlers>>;
+    return typedObject<State>(
+      name,
+      SerdeClass,
+    )(wrappedHandlers) as VirtualObjectDefinition<
+      string,
+      TransformEventHandlers<State, THandlers>
+    >;
   };
 }
 
