@@ -5,11 +5,10 @@ export { RestateClient } from "./factory";
 export { typedService, createRestateService } from "./typed-service";
 export { typedObject, createRestateObject } from "./typed-object";
 export { typedWorkflow, createRestateWorkflow } from "./typed-workflow";
+export { createEventObject } from "./typed-event-object";
 
 // Type exports for advanced users
-export type {
-  ServiceHandlerContext,
-} from "./typed-service";
+export type { ServiceHandlerContext } from "./typed-service";
 
 export type { ObjectHandlerContext, HandlerContext } from "./typed-object";
 
@@ -17,6 +16,13 @@ export type {
   WorkflowHandlerContext,
   WorkflowSharedHandlerContext,
 } from "./typed-workflow";
+
+export type {
+  EventUnion,
+  EventSourcedState,
+  InferEventType,
+  InferEventState,
+} from "./typed-event-object";
 
 export type {
   TypedRun,
