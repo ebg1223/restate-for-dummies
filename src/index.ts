@@ -20,8 +20,10 @@ export type {
 export type {
   EventUnion,
   EventSourcedState,
+  CombinedEventState,
   InferEventType,
   InferEventState,
+  InferCombinedState,
 } from "./typed-event-object";
 
 export type {

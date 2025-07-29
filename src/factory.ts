@@ -43,8 +43,12 @@ export class RestateClient {
   createObject = <T>(name: string) => typedObject<T>(name, this.SerdeClass);
   createService = (name: string) => typedService(name, this.SerdeClass);
   createWorkflow = <T>(name: string) => typedWorkflow<T>(name, this.SerdeClass);
-  createEventHandler = <T extends Record<string, any>>(name: string) =>
-    createEventObject<T>(name, this.SerdeClass);
+  createEventHandler = <
+    T extends Record<string, any>,
+    U extends Record<string, any> = {},
+  >(
+    name: string,
+  ) => createEventObject<T, U>(name, this.SerdeClass);
 
   // Direct client methods with proper generic types
   serviceClient = <T>(
